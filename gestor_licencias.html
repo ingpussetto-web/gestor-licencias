@@ -926,7 +926,6 @@ async function loadClientes(){
     const conGP = _clientesData.filter(c=>licCuentaMap[c.id]?.has('gestion_play')).length;
     document.getElementById('clientes-stats').innerHTML =
       `<div class="stat-card"><div class="stat-val">${_clientesData.length}</div><div class="stat-label">Total clientes</div></div>`+
-      `<div class="stat-card"><div class="stat-val">${activos}</div><div class="stat-label">Activos</div></div>`+
       `<div class="stat-card"><div class="stat-val" style="color:var(--accent);">${conTN}</div><div class="stat-label">Totem Nube</div></div>`+
       `<div class="stat-card"><div class="stat-val" style="color:var(--blue);">${conGP}</div><div class="stat-label">Gestion Play</div></div>`;
     
