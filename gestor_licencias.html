@@ -1267,7 +1267,21 @@ async function guardarPrecio(){
   const indice = parseFloat(document.getElementById('prec-indice').value);
   if(!periodo||isNaN(indice)||indice<=0){ toast('Período e índice son obligatorios'); return; }
   
+  // Protección contra doble click
+  const btn = document.querySelector('#modal-precio .btn.primary');
+  if(btn.disabled) return;
+  btn.disabled = true;
+  btn.textContent = 'Aplicando...';
+
   try{
+    // Verificar si ya existe registro para este período
+    const existente = await api('actualizaciones_precio?periodo=eq.'+periodo+'&select=id').catch(()=>[]);
+    if(existente?.length){
+      toast('Ya existe una actualización para este período');
+      btn.disabled = false; btn.textContent = 'Aplicar ajuste';
+      return;
+    }
+
     // Guardar registro
     await api('actualizaciones_precio','POST',{
       periodo, indice_inflacion: indice,
@@ -1287,7 +1301,12 @@ async function guardarPrecio(){
     toast(`Precios actualizados (${licencias?.length||0} licencias)`);
     cerrarModal('modal-precio');
     loadPrecios();
-  }catch(e){ toast('Error: '+e.message); }
+  }catch(e){
+    toast('Error: '+e.message);
+  }finally{
+    btn.disabled = false;
+    btn.textContent = 'Aplicar ajuste';
+  }
 }
 
 // ── INIT ─────────────────────────────────────────────────────
