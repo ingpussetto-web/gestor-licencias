@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestor de Licencias — Totem Nube</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:        #f5f0e8;
+  --bg2:       #ede7d9;
+  --bg3:       #e4dccb;
+  --surface:   #faf7f2;
+  --border:    #d4c9b0;
+  --border2:   #c4b89a;
+  --text:      #2c2416;
+  --text2:     #5a4e3a;
+  --text3:     #8a7a60;
+  --accent:    #7c5c2e;
+  --accent2:   #a07840;
+  --green:     #4a7c59;
+  --red:       #8c3a2e;
+  --amber:     #b87d2e;
+  --blue:      #2e5c8c;
+  --shadow:    0 2px 12px rgba(44,36,22,0.10);
+  --shadow-lg: 0 8px 32px rgba(44,36,22,0.15);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── HEADER ── */
+.header {
+  background: var(--text);
+  color: var(--bg);
+  padding: 0 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 56px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.header-logo {
+  font-family: 'Playfair Display', serif;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.header-logo span { color: var(--accent2); }
+.header-conn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--bg3);
+}
+.conn-dot { width: 8px; height: 8px; border-radius: 50%; background: #666; }
+.conn-dot.ok { background: var(--green); }
+
+/* ── LAYOUT ── */
+.layout { display: flex; flex: 1; min-height: 0; }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width: 220px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 20px 0;
+  position: sticky;
+  top: 56px;
+  height: calc(100vh - 56px);
+  overflow-y: auto;
+}
+.nav-section {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 16px 20px 6px;
+  font-family: 'DM Mono', monospace;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 20px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text2);
+  cursor: pointer;
+  transition: all 0.15s;
+  border-left: 3px solid transparent;
+}
+.nav-item:hover { background: var(--bg2); color: var(--text); }
+.nav-item.active {
+  background: var(--bg2);
+  color: var(--accent);
+  border-left-color: var(--accent);
+  font-weight: 600;
+}
+
+/* ── MAIN ── */
+main {
+  flex: 1;
+  padding: 28px 32px;
+  overflow-y: auto;
+  height: calc(100vh - 56px);
+}
+
+/* ── PAGES ── */
+.page { display: none; }
+.page.active { display: block; }
+
+/* ── PAGE HEADER ── */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+.page-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--text);
+}
+.page-subtitle {
+  font-size: 13px;
+  color: var(--text3);
+  margin-top: 3px;
+}
+
+/* ── STATS BAR ── */
+.stats-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 20px;
+  min-width: 120px;
+}
+.stat-val { font-size: 24px; font-weight: 700; font-family: 'DM Mono', monospace; color: var(--accent); }
+.stat-label { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+/* ── BOTONES ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border2);
+  background: var(--surface);
+  color: var(--text2);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: 'DM Sans', sans-serif;
+}
+.btn:hover { background: var(--bg2); color: var(--text); border-color: var(--accent); }
+.btn.primary {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}
+.btn.primary:hover { background: var(--accent2); }
+.btn.green { background: var(--green); color: white; border-color: var(--green); }
+.btn.red { background: var(--red); color: white; border-color: var(--red); }
+.btn.sm { padding: 4px 10px; font-size: 11px; }
+
+/* ── TABLA ── */
+.table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.table-filters {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+table { width: 100%; border-collapse: collapse; }
+th {
+  padding: 10px 14px;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text3);
+  font-family: 'DM Mono', monospace;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg2);
+}
+td {
+  padding: 11px 14px;
+  font-size: 13px;
+  color: var(--text2);
+  border-bottom: 1px solid var(--border);
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--bg2); }
+
+/* ── INPUTS ── */
+.form-input, .form-select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  transition: border-color 0.15s;
+}
+.form-input:focus, .form-select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.search-input {
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  width: 220px;
+}
+.search-input:focus { outline: none; border-color: var(--accent); }
+
+/* ── BADGES ── */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: 'DM Mono', monospace;
+}
+.badge-green { background: rgba(74,124,89,0.15); color: var(--green); }
+.badge-red { background: rgba(140,58,46,0.15); color: var(--red); }
+.badge-amber { background: rgba(184,125,46,0.15); color: var(--amber); }
+.badge-blue { background: rgba(46,92,140,0.15); color: var(--blue); }
+.badge-gray { background: rgba(138,122,96,0.15); color: var(--text3); }
+
+/* ── MODAL ── */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(44,36,22,0.5);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--surface);
+  border-radius: 14px;
+  padding: 28px;
+  width: 520px;
+  max-width: 95vw;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+}
+.modal-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  color: var(--text);
+}
+.form-group { margin-bottom: 14px; }
+.form-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text3);
+  margin-bottom: 5px;
+  font-family: 'DM Mono', monospace;
+}
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+/* ── TOAST ── */
+#toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--text);
+  color: var(--bg);
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  z-index: 999;
+  display: none;
+  box-shadow: var(--shadow-lg);
+}
+
+/* ── LOADING ── */
+.loading { padding: 40px; text-align: center; color: var(--text3); font-size: 14px; }
+.spinner {
+  width: 24px; height: 24px;
+  border: 2px solid var(--border2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  display: inline-block;
+  margin-right: 10px;
+  vertical-align: middle;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── EMPTY ── */
+.empty { padding: 40px; text-align: center; color: var(--text3); }
+.empty-icon { font-size: 36px; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-logo">Gestor <span>Licencias</span></div>
+  <div class="header-conn">
+    <div class="conn-dot" id="conn-dot"></div>
+    <span id="conn-txt">Conectando...</span>
+  </div>
+</div>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="nav-section">Gestión</div>
+    <div class="nav-item active" id="nav-clientes" onclick="showPage('clientes')">
+      <span>👥</span> Clientes
+    </div>
+    <div class="nav-item" id="nav-licencias" onclick="showPage('licencias')">
+      <span>🔑</span> Licencias
+    </div>
+    <div class="nav-item" id="nav-cobranzas" onclick="showPage('cobranzas')">
+      <span>💰</span> Cobranzas
+    </div>
+    <div class="nav-section">Sistema</div>
+    <div class="nav-item" id="nav-precios" onclick="showPage('precios')">
+      <span>📈</span> Actualiz. precios
+    </div>
+    <div class="nav-item" id="nav-config" onclick="showPage('config')">
+      <span>⚙</span> Configuración
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <main>
+
+    <!-- ── CLIENTES ── -->
+    <div class="page active" id="page-clientes">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Clientes</div>
+          <div class="page-subtitle">Empresas y contactos con licencias activas</div>
+        </div>
+        <button class="btn primary" onclick="abrirModalCliente()">+ Nuevo cliente</button>
+      </div>
+      <div id="clientes-stats" class="stats-bar"></div>
+      <div class="table-wrap">
+        <div class="table-filters">
+          <input class="search-input" type="text" id="search-clientes" placeholder="🔍 Buscar cliente..." oninput="filtrarClientes()">
+          <select class="form-select" style="width:140px;" id="filtro-estado-cliente" onchange="filtrarClientes()">
+            <option value="">Todos</option>
+            <option value="true">Activos</option>
+            <option value="false">Inactivos</option>
+          </select>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>CUIT</th>
+              <th>Email</th>
+              <th>Teléfono</th>
+              <th>Licencias</th>
+              <th>Estado</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="clientes-tbody">
+            <tr><td colspan="7"><div class="loading"><span class="spinner"></span>Cargando...</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── LICENCIAS ── -->
+    <div class="page" id="page-licencias">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Licencias</div>
+          <div class="page-subtitle">Todas las licencias activas por cliente</div>
+        </div>
+        <button class="btn primary" onclick="abrirModalLicencia()">+ Nueva licencia</button>
+      </div>
+      <div id="licencias-stats" class="stats-bar"></div>
+      <div class="table-wrap">
+        <div class="table-filters">
+          <input class="search-input" type="text" id="search-licencias" placeholder="🔍 Buscar..." oninput="filtrarLicencias()">
+          <select class="form-select" style="width:160px;" id="filtro-tipo" onchange="filtrarLicencias()">
+            <option value="">Todos los tipos</option>
+            <option value="turnero">Turnero</option>
+            <option value="publicidad">Publicidad digital</option>
+            <option value="ia">Agente IA</option>
+            <option value="autogestion">Autogestión y pagos</option>
+            <option value="cuos_atencion">CUOS Atención remota</option>
+            <option value="cuos_vigilancia">CUOS Vigilancia</option>
+            <option value="gestionplay">GestionPlay</option>
+            <option value="validar">Validar</option>
+          </select>
+          <select class="form-select" style="width:130px;" id="filtro-estado-lic" onchange="filtrarLicencias()">
+            <option value="activa">Activas</option>
+            <option value="">Todas</option>
+            <option value="inactiva">Inactivas</option>
+          </select>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Cliente</th>
+              <th>Tipo</th>
+              <th>Descripción</th>
+              <th>Precio</th>
+              <th>Moneda</th>
+              <th>Estado</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="licencias-tbody">
+            <tr><td colspan="7"><div class="loading"><span class="spinner"></span>Cargando...</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── COBRANZAS ── -->
+    <div class="page" id="page-cobranzas">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Cobranzas</div>
+          <div class="page-subtitle">Seguimiento mensual de pagos por cliente</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <select class="form-select" style="width:160px;" id="filtro-periodo" onchange="loadCobranzas()">
+          </select>
+          <button class="btn primary" onclick="abrirModalCobranza()">+ Nueva cobranza</button>
+        </div>
+      </div>
+      <div id="cobranzas-stats" class="stats-bar"></div>
+      <div class="table-wrap">
+        <div class="table-filters">
+          <input class="search-input" type="text" id="search-cobranzas" placeholder="🔍 Buscar cliente..." oninput="filtrarCobranzas()">
+          <select class="form-select" style="width:160px;" id="filtro-estado-cob" onchange="filtrarCobranzas()">
+            <option value="">Todos los estados</option>
+            <option value="borrador">Borrador</option>
+            <option value="enviada">Enviada</option>
+            <option value="cobrada">Cobrada</option>
+            <option value="vencida">Vencida</option>
+            <option value="incobrable">Incobrable</option>
+          </select>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Cliente</th>
+              <th>Período</th>
+              <th>N° Factura</th>
+              <th>Monto</th>
+              <th>Vencimiento</th>
+              <th>Estado</th>
+              <th>Cobro</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="cobranzas-tbody">
+            <tr><td colspan="8"><div class="loading"><span class="spinner"></span>Cargando...</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── PRECIOS ── -->
+    <div class="page" id="page-precios">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Actualización de precios</div>
+          <div class="page-subtitle">Ajuste mensual por inflación</div>
+        </div>
+        <button class="btn primary" onclick="abrirModalPrecio()">+ Aplicar ajuste</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Período</th>
+              <th>Índice inflación</th>
+              <th>Fecha aplicación</th>
+              <th>Aplicado por</th>
+              <th>Notas</th>
+            </tr>
+          </thead>
+          <tbody id="precios-tbody">
+            <tr><td colspan="5"><div class="loading"><span class="spinner"></span>Cargando...</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── CONFIG ── -->
+    <div class="page" id="page-config">
+      <div class="page-header">
+        <div><div class="page-title">Configuración</div></div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:480px;">
+        <div style="font-size:14px;font-weight:600;margin-bottom:16px;">Conexión Supabase</div>
+        <div class="form-group">
+          <label class="form-label">Project URL</label>
+          <input class="form-input" type="text" id="cfg-url" placeholder="https://xxxx.supabase.co">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Anon Key</label>
+          <input class="form-input" type="password" id="cfg-key" placeholder="eyJ...">
+        </div>
+        <button class="btn primary" onclick="guardarConfig()">Guardar y conectar</button>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- MODAL CLIENTE -->
+<div class="modal-overlay" id="modal-cliente">
+  <div class="modal">
+    <div class="modal-title" id="modal-cliente-title">Nuevo cliente</div>
+    <div class="form-group">
+      <label class="form-label">Nombre / Razón social *</label>
+      <input class="form-input" type="text" id="cli-nombre">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">CUIT</label>
+        <input class="form-input" type="text" id="cli-cuit">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Estado</label>
+        <select class="form-select" id="cli-activo">
+          <option value="true">Activo</option>
+          <option value="false">Inactivo</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input class="form-input" type="email" id="cli-email">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Teléfono</label>
+        <input class="form-input" type="text" id="cli-tel">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Contacto (nombre)</label>
+      <input class="form-input" type="text" id="cli-contacto">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Notas</label>
+      <textarea class="form-input" id="cli-notas" rows="2" style="resize:vertical;"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="cerrarModal('modal-cliente')">Cancelar</button>
+      <button class="btn primary" onclick="guardarCliente()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL LICENCIA -->
+<div class="modal-overlay" id="modal-licencia">
+  <div class="modal">
+    <div class="modal-title" id="modal-licencia-title">Nueva licencia</div>
+    <div class="form-group">
+      <label class="form-label">Cliente *</label>
+      <select class="form-select" id="lic-cliente"></select>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Tipo *</label>
+        <select class="form-select" id="lic-tipo">
+          <option value="turnero">Turnero</option>
+          <option value="publicidad">Publicidad digital</option>
+          <option value="ia">Agente IA</option>
+          <option value="autogestion">Autogestión y pagos</option>
+          <option value="cuos_atencion">CUOS Atención remota</option>
+          <option value="cuos_vigilancia">CUOS Vigilancia</option>
+          <option value="gestionplay">GestionPlay</option>
+          <option value="validar">Validar</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Estado</label>
+        <select class="form-select" id="lic-estado">
+          <option value="activa">Activa</option>
+          <option value="inactiva">Inactiva</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Descripción</label>
+      <input class="form-input" type="text" id="lic-desc" placeholder="Ej: Turnero 3 puestos + pantalla sala espera">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Precio actual *</label>
+        <input class="form-input" type="number" id="lic-precio" min="0" step="0.01">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Moneda</label>
+        <select class="form-select" id="lic-moneda">
+          <option value="ARS">ARS</option>
+          <option value="USD">USD</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Fecha alta</label>
+        <input class="form-input" type="date" id="lic-fecha-alta">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Puestos / Pantallas</label>
+        <input class="form-input" type="text" id="lic-params" placeholder="Ej: 3 puestos, 2 pantallas">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Notas</label>
+      <textarea class="form-input" id="lic-notas" rows="2" style="resize:vertical;"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="cerrarModal('modal-licencia')">Cancelar</button>
+      <button class="btn primary" onclick="guardarLicencia()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL COBRANZA -->
+<div class="modal-overlay" id="modal-cobranza">
+  <div class="modal">
+    <div class="modal-title" id="modal-cobranza-title">Nueva cobranza</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Cliente *</label>
+        <select class="form-select" id="cob-cliente"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Período *</label>
+        <input class="form-input" type="month" id="cob-periodo">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">N° Factura externa</label>
+        <input class="form-input" type="text" id="cob-factura">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Monto total *</label>
+        <input class="form-input" type="number" id="cob-monto" min="0" step="0.01">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Estado</label>
+        <select class="form-select" id="cob-estado">
+          <option value="borrador">Borrador</option>
+          <option value="enviada">Enviada</option>
+          <option value="cobrada">Cobrada</option>
+          <option value="vencida">Vencida</option>
+          <option value="incobrable">Incobrable</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Canal envío</label>
+        <select class="form-select" id="cob-canal">
+          <option value="email">Email</option>
+          <option value="whatsapp">WhatsApp</option>
+          <option value="ambos">Ambos</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Fecha vencimiento</label>
+        <input class="form-input" type="date" id="cob-vencimiento">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Fecha cobro</label>
+        <input class="form-input" type="date" id="cob-cobro">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Notas</label>
+      <textarea class="form-input" id="cob-notas" rows="2" style="resize:vertical;"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="cerrarModal('modal-cobranza')">Cancelar</button>
+      <button class="btn primary" onclick="guardarCobranza()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PRECIO -->
+<div class="modal-overlay" id="modal-precio">
+  <div class="modal">
+    <div class="modal-title">Aplicar ajuste por inflación</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Período *</label>
+        <input class="form-input" type="month" id="prec-periodo">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Índice inflación % *</label>
+        <input class="form-input" type="number" id="prec-indice" min="0" step="0.01" placeholder="Ej: 8.5">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Aplicado por</label>
+        <input class="form-input" type="text" id="prec-usuario">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Fecha aplicación</label>
+        <input class="form-input" type="date" id="prec-fecha">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Notas</label>
+      <textarea class="form-input" id="prec-notas" rows="2" style="resize:vertical;"></textarea>
+    </div>
+    <div style="background:rgba(184,125,46,0.1);border:1px solid rgba(184,125,46,0.3);border-radius:8px;padding:12px;margin-bottom:4px;font-size:12px;color:var(--text2);">
+      ⚠ Este ajuste actualizará el precio de <strong>todas las licencias activas en ARS</strong> multiplicando por el índice ingresado.
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="cerrarModal('modal-precio')">Cancelar</button>
+      <button class="btn primary" onclick="guardarPrecio()">Aplicar ajuste</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────────
+let SUPA_URL = localStorage.getItem('lic_supa_url') || '';
+let SUPA_KEY = localStorage.getItem('lic_supa_key') || '';
+
+// ── API ──────────────────────────────────────────────────────
+async function api(path, method='GET', body=null){
+  if(!SUPA_URL||!SUPA_KEY) throw new Error('Sin configuración');
+  const opts = {
+    method,
+    headers: {
+      'apikey': SUPA_KEY,
+      'Authorization': 'Bearer '+SUPA_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': method==='POST' ? 'return=representation' : method==='PATCH' ? 'return=representation' : ''
+    }
+  };
+  if(body) opts.body = JSON.stringify(body);
+  const res = await fetch(SUPA_URL.replace(/\/$/,'')+'/rest/v1/'+path, opts);
+  if(!res.ok) throw new Error(await res.text());
+  if(res.status===204) return null;
+  return res.json();
+}
+
+// ── HELPERS ─────────────────────────────────────────────────
+function fmt(n){ return Number(n||0).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtFecha(d){ if(!d) return '—'; return new Date(d+'T12:00:00').toLocaleDateString('es-AR'); }
+function toast(msg, dur=3000){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.style.display='block';
+  setTimeout(()=>el.style.display='none', dur);
+}
+function cerrarModal(id){ document.getElementById(id).classList.remove('open'); }
+function abrirModal(id){ document.getElementById(id).classList.add('open'); }
+
+const TIPO_LABELS = {
+  turnero:'Turnero', publicidad:'Publicidad digital', ia:'Agente IA',
+  autogestion:'Autogestión y pagos', cuos_atencion:'CUOS Atención remota',
+  cuos_vigilancia:'CUOS Vigilancia', gestionplay:'GestionPlay', validar:'Validar'
+};
+const ESTADO_BADGE = {
+  activa:'badge-green', inactiva:'badge-gray',
+  borrador:'badge-gray', enviada:'badge-blue',
+  cobrada:'badge-green', vencida:'badge-red', incobrable:'badge-red'
+};
+const ESTADO_LABEL = {
+  activa:'Activa', inactiva:'Inactiva',
+  borrador:'Borrador', enviada:'Enviada',
+  cobrada:'Cobrada', vencida:'Vencida', incobrable:'Incobrable'
+};
+
+// ── NAVEGACIÓN ───────────────────────────────────────────────
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  document.getElementById('nav-'+id)?.classList.add('active');
+  if(id==='clientes') loadClientes();
+  if(id==='licencias') loadLicencias();
+  if(id==='cobranzas') loadCobranzas();
+  if(id==='precios') loadPrecios();
+}
+
+// ── CONEXIÓN ─────────────────────────────────────────────────
+async function checkConnection(){
+  try{
+    await api('clientes?select=id&limit=1');
+    document.getElementById('conn-dot').className='conn-dot ok';
+    document.getElementById('conn-txt').textContent='Conectado';
+    return true;
+  }catch(e){
+    document.getElementById('conn-dot').className='conn-dot';
+    document.getElementById('conn-txt').textContent='Sin conexión';
+    return false;
+  }
+}
+function guardarConfig(){
+  SUPA_URL = document.getElementById('cfg-url').value.trim();
+  SUPA_KEY = document.getElementById('cfg-key').value.trim();
+  localStorage.setItem('lic_supa_url', SUPA_URL);
+  localStorage.setItem('lic_supa_key', SUPA_KEY);
+  checkConnection().then(ok=>{ if(ok){ toast('Conectado'); showPage('clientes'); } else toast('Error de conexión'); });
+}
+
+// ── CACHE CLIENTES ────────────────────────────────────────────
+let _clientes = [];
+async function getClientes(){
+  if(_clientes.length) return _clientes;
+  _clientes = await api('clientes?select=id,nombre,activo&order=nombre.asc').catch(()=>[]);
+  return _clientes;
+}
+
+// ── CLIENTES ─────────────────────────────────────────────────
+let _clientesData = [];
+async function loadClientes(){
+  const tbody = document.getElementById('clientes-tbody');
+  tbody.innerHTML = '<tr><td colspan="7"><div class="loading"><span class="spinner"></span>Cargando...</div></td></tr>';
+  try{
+    const data = await api('clientes?select=id,nombre,cuit,email,telefono,contacto,activo&order=nombre.asc');
+    _clientesData = data||[];
+    // contar licencias por cliente
+    const lics = await api('licencias?select=cliente_id,estado').catch(()=>[]);
+    const licCount = {};
+    (lics||[]).forEach(l=>{ licCount[l.cliente_id] = (licCount[l.cliente_id]||0)+(l.estado==='activa'?1:0); });
+    
+    const activos = _clientesData.filter(c=>c.activo).length;
+    document.getElementById('clientes-stats').innerHTML =
+      `<div class="stat-card"><div class="stat-val">${_clientesData.length}</div><div class="stat-label">Total clientes</div></div>`+
+      `<div class="stat-card"><div class="stat-val">${activos}</div><div class="stat-label">Activos</div></div>`;
+    
+    renderClientes(_clientesData, licCount);
+    _clientes = []; // invalidar cache
+  }catch(e){ tbody.innerHTML=`<tr><td colspan="7"><div class="empty">Error: ${e.message}</div></td></tr>`; }
+}
+
+function renderClientes(data, licCount){
+  const tbody = document.getElementById('clientes-tbody');
+  if(!data.length){ tbody.innerHTML='<tr><td colspan="7"><div class="empty"><div class="empty-icon">👥</div>Sin clientes cargados</div></td></tr>'; return; }
+  tbody.innerHTML = data.map(c=>`
+    <tr>
+      <td><strong>${c.nombre}</strong>${c.contacto?`<br><span style="font-size:11px;color:var(--text3);">${c.contacto}</span>`:''}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px;">${c.cuit||'—'}</td>
+      <td>${c.email||'—'}</td>
+      <td>${c.telefono||'—'}</td>
+      <td style="text-align:center;"><span class="badge badge-blue">${licCount[c.id]||0}</span></td>
+      <td><span class="badge ${c.activo?'badge-green':'badge-gray'}">${c.activo?'Activo':'Inactivo'}</span></td>
+      <td style="text-align:right;">
+        <button class="btn sm" onclick="editarCliente(${c.id})">✏ Editar</button>
+      </td>
+    </tr>`).join('');
+}
+
+function filtrarClientes(){
+  const q = document.getElementById('search-clientes').value.toLowerCase();
+  const est = document.getElementById('filtro-estado-cliente').value;
+  const filtered = _clientesData.filter(c=>{
+    const matchQ = !q || c.nombre.toLowerCase().includes(q) || (c.cuit||'').includes(q) || (c.email||'').toLowerCase().includes(q);
+    const matchEst = est==='' || String(c.activo)===est;
+    return matchQ && matchEst;
+  });
+  renderClientes(filtered, {});
+}
+
+let _editClienteId = null;
+function abrirModalCliente(){
+  _editClienteId = null;
+  document.getElementById('modal-cliente-title').textContent = 'Nuevo cliente';
+  ['cli-nombre','cli-cuit','cli-email','cli-tel','cli-contacto','cli-notas'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('cli-activo').value = 'true';
+  abrirModal('modal-cliente');
+}
+async function editarCliente(id){
+  const c = _clientesData.find(x=>x.id===id);
+  if(!c) return;
+  _editClienteId = id;
+  document.getElementById('modal-cliente-title').textContent = 'Editar cliente';
+  document.getElementById('cli-nombre').value = c.nombre||'';
+  document.getElementById('cli-cuit').value = c.cuit||'';
+  document.getElementById('cli-email').value = c.email||'';
+  document.getElementById('cli-tel').value = c.telefono||'';
+  document.getElementById('cli-contacto').value = c.contacto||'';
+  document.getElementById('cli-notas').value = c.notas||'';
+  document.getElementById('cli-activo').value = String(c.activo);
+  abrirModal('modal-cliente');
+}
+async function guardarCliente(){
+  const nombre = document.getElementById('cli-nombre').value.trim();
+  if(!nombre){ toast('El nombre es obligatorio'); return; }
+  const data = {
+    nombre, cuit: document.getElementById('cli-cuit').value.trim(),
+    email: document.getElementById('cli-email').value.trim(),
+    telefono: document.getElementById('cli-tel').value.trim(),
+    contacto: document.getElementById('cli-contacto').value.trim(),
+    notas: document.getElementById('cli-notas').value.trim(),
+    activo: document.getElementById('cli-activo').value==='true'
+  };
+  try{
+    if(_editClienteId){
+      await api('clientes?id=eq.'+_editClienteId,'PATCH',data);
+      toast('Cliente actualizado');
+    }else{
+      await api('clientes','POST',data);
+      toast('Cliente creado');
+    }
+    cerrarModal('modal-cliente');
+    loadClientes();
+  }catch(e){ toast('Error: '+e.message); }
+}
+
+// ── LICENCIAS ────────────────────────────────────────────────
+let _licenciasData = [];
+async function loadLicencias(){
+  const tbody = document.getElementById('licencias-tbody');
+  tbody.innerHTML = '<tr><td colspan="7"><div class="loading"><span class="spinner"></span>Cargando...</div></td></tr>';
+  try{
+    const data = await api('licencias?select=id,cliente_id,tipo,descripcion,precio_actual,moneda,estado,fecha_alta,parametros,notas,clientes(nombre)&order=clientes(nombre).asc');
+    _licenciasData = data||[];
+    const activas = _licenciasData.filter(l=>l.estado==='activa');
+    const totalARS = activas.filter(l=>l.moneda==='ARS').reduce((s,l)=>s+(l.precio_actual||0),0);
+    const totalUSD = activas.filter(l=>l.moneda==='USD').reduce((s,l)=>s+(l.precio_actual||0),0);
+    document.getElementById('licencias-stats').innerHTML =
+      `<div class="stat-card"><div class="stat-val">${activas.length}</div><div class="stat-label">Licencias activas</div></div>`+
+      `<div class="stat-card"><div class="stat-val">$${fmt(totalARS)}</div><div class="stat-label">Total mensual ARS</div></div>`+
+      (totalUSD>0?`<div class="stat-card"><div class="stat-val">USD ${fmt(totalUSD)}</div><div class="stat-label">Total mensual USD</div></div>`:'');
+    
+    // Poblar selector de clientes en modal
+    const clientes = await getClientes();
+    const selCli = document.getElementById('lic-cliente');
+    selCli.innerHTML = clientes.filter(c=>c.activo).map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');
+    
+    filtrarLicencias();
+  }catch(e){ tbody.innerHTML=`<tr><td colspan="7"><div class="empty">Error: ${e.message}</div></td></tr>`; }
+}
+
+function filtrarLicencias(){
+  const q = document.getElementById('search-licencias').value.toLowerCase();
+  const tipo = document.getElementById('filtro-tipo').value;
+  const estado = document.getElementById('filtro-estado-lic').value;
+  const filtered = _licenciasData.filter(l=>{
+    const nombre = l.clientes?.nombre||'';
+    const matchQ = !q || nombre.toLowerCase().includes(q) || (l.descripcion||'').toLowerCase().includes(q);
+    const matchTipo = !tipo || l.tipo===tipo;
+    const matchEst = !estado || l.estado===estado;
+    return matchQ && matchTipo && matchEst;
+  });
+  renderLicencias(filtered);
+}
+
+function renderLicencias(data){
+  const tbody = document.getElementById('licencias-tbody');
+  if(!data.length){ tbody.innerHTML='<tr><td colspan="7"><div class="empty"><div class="empty-icon">🔑</div>Sin licencias</div></td></tr>'; return; }
+  tbody.innerHTML = data.map(l=>`
+    <tr>
+      <td><strong>${l.clientes?.nombre||'—'}</strong></td>
+      <td><span class="badge badge-blue">${TIPO_LABELS[l.tipo]||l.tipo}</span></td>
+      <td style="max-width:200px;font-size:12px;">${l.descripcion||'—'}</td>
+      <td style="font-family:'DM Mono',monospace;font-weight:600;color:var(--accent);">$${fmt(l.precio_actual)}</td>
+      <td><span class="badge ${l.moneda==='USD'?'badge-amber':'badge-gray'}">${l.moneda}</span></td>
+      <td><span class="badge ${ESTADO_BADGE[l.estado]||'badge-gray'}">${ESTADO_LABEL[l.estado]||l.estado}</span></td>
+      <td style="text-align:right;">
+        <button class="btn sm" onclick="editarLicencia(${l.id})">✏</button>
+      </td>
+    </tr>`).join('');
+}
+
+let _editLicenciaId = null;
+function abrirModalLicencia(){
+  _editLicenciaId = null;
+  document.getElementById('modal-licencia-title').textContent = 'Nueva licencia';
+  ['lic-desc','lic-notas','lic-params'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('lic-precio').value='';
+  document.getElementById('lic-tipo').value='turnero';
+  document.getElementById('lic-estado').value='activa';
+  document.getElementById('lic-moneda').value='ARS';
+  document.getElementById('lic-fecha-alta').value=new Date().toISOString().split('T')[0];
+  abrirModal('modal-licencia');
+}
+async function editarLicencia(id){
+  const l = _licenciasData.find(x=>x.id===id);
+  if(!l) return;
+  _editLicenciaId = id;
+  document.getElementById('modal-licencia-title').textContent = 'Editar licencia';
+  document.getElementById('lic-cliente').value = l.cliente_id;
+  document.getElementById('lic-tipo').value = l.tipo;
+  document.getElementById('lic-estado').value = l.estado;
+  document.getElementById('lic-desc').value = l.descripcion||'';
+  document.getElementById('lic-precio').value = l.precio_actual||'';
+  document.getElementById('lic-moneda').value = l.moneda||'ARS';
+  document.getElementById('lic-fecha-alta').value = l.fecha_alta||'';
+  document.getElementById('lic-params').value = l.parametros?.descripcion||'';
+  document.getElementById('lic-notas').value = l.notas||'';
+  abrirModal('modal-licencia');
+}
+async function guardarLicencia(){
+  const cliente_id = document.getElementById('lic-cliente').value;
+  const precio_actual = parseFloat(document.getElementById('lic-precio').value);
+  if(!cliente_id){ toast('Seleccioná un cliente'); return; }
+  if(isNaN(precio_actual)){ toast('Ingresá un precio válido'); return; }
+  const params_txt = document.getElementById('lic-params').value.trim();
+  const data = {
+    cliente_id: parseInt(cliente_id),
+    tipo: document.getElementById('lic-tipo').value,
+    estado: document.getElementById('lic-estado').value,
+    descripcion: document.getElementById('lic-desc').value.trim(),
+    precio_actual,
+    moneda: document.getElementById('lic-moneda').value,
+    fecha_alta: document.getElementById('lic-fecha-alta').value||null,
+    parametros: params_txt ? {descripcion: params_txt} : {},
+    notas: document.getElementById('lic-notas').value.trim()
+  };
+  try{
+    if(_editLicenciaId){
+      await api('licencias?id=eq.'+_editLicenciaId,'PATCH',data);
+      toast('Licencia actualizada');
+    }else{
+      await api('licencias','POST',data);
+      toast('Licencia creada');
+    }
+    cerrarModal('modal-licencia');
+    loadLicencias();
+  }catch(e){ toast('Error: '+e.message); }
+}
+
+// ── COBRANZAS ────────────────────────────────────────────────
+let _cobranzasData = [];
+function generarPeriodos(){
+  const sel = document.getElementById('filtro-periodo');
+  const hoy = new Date();
+  let opts = '';
+  for(let i=0;i<12;i++){
+    const d = new Date(hoy.getFullYear(), hoy.getMonth()-i, 1);
+    const val = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const label = d.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
+    opts += `<option value="${val}"${i===0?' selected':''}>${label.charAt(0).toUpperCase()+label.slice(1)}</option>`;
+  }
+  sel.innerHTML = opts;
+}
+
+async function loadCobranzas(){
+  const tbody = document.getElementById('cobranzas-tbody');
+  const periodo = document.getElementById('filtro-periodo').value;
+  tbody.innerHTML = '<tr><td colspan="8"><div class="loading"><span class="spinner"></span>Cargando...</div></td></tr>';
+  try{
+    const data = await api(`facturas?periodo=eq.${periodo}&select=id,cliente_id,periodo,numero_factura_externa,monto_total,estado,fecha_vencimiento,fecha_cobro,canal_envio,notas,clientes(nombre)&order=clientes(nombre).asc`);
+    _cobranzasData = data||[];
+    
+    const cobradas = _cobranzasData.filter(f=>f.estado==='cobrada');
+    const pendientes = _cobranzasData.filter(f=>['enviada','borrador'].includes(f.estado));
+    const vencidas = _cobranzasData.filter(f=>f.estado==='vencida');
+    const totalCobrado = cobradas.reduce((s,f)=>s+(f.monto_total||0),0);
+    const totalPendiente = pendientes.reduce((s,f)=>s+(f.monto_total||0),0);
+    
+    document.getElementById('cobranzas-stats').innerHTML =
+      `<div class="stat-card"><div class="stat-val" style="color:var(--green);">$${fmt(totalCobrado)}</div><div class="stat-label">Cobrado</div></div>`+
+      `<div class="stat-card"><div class="stat-val" style="color:var(--amber);">$${fmt(totalPendiente)}</div><div class="stat-label">Pendiente</div></div>`+
+      `<div class="stat-card"><div class="stat-val" style="color:var(--red);">${vencidas.length}</div><div class="stat-label">Vencidas</div></div>`;
+
+    // Poblar selector clientes modal
+    const clientes = await getClientes();
+    const selCli = document.getElementById('cob-cliente');
+    selCli.innerHTML = clientes.filter(c=>c.activo).map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');
+
+    filtrarCobranzas();
+  }catch(e){ tbody.innerHTML=`<tr><td colspan="8"><div class="empty">Error: ${e.message}</div></td></tr>`; }
+}
+
+function filtrarCobranzas(){
+  const q = document.getElementById('search-cobranzas').value.toLowerCase();
+  const est = document.getElementById('filtro-estado-cob').value;
+  const filtered = _cobranzasData.filter(f=>{
+    const nombre = f.clientes?.nombre||'';
+    const matchQ = !q || nombre.toLowerCase().includes(q);
+    const matchEst = !est || f.estado===est;
+    return matchQ && matchEst;
+  });
+  renderCobranzas(filtered);
+}
+
+function renderCobranzas(data){
+  const tbody = document.getElementById('cobranzas-tbody');
+  if(!data.length){ tbody.innerHTML='<tr><td colspan="8"><div class="empty"><div class="empty-icon">💰</div>Sin cobranzas para este período</div></td></tr>'; return; }
+  tbody.innerHTML = data.map(f=>`
+    <tr>
+      <td><strong>${f.clientes?.nombre||'—'}</strong></td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px;">${f.periodo||'—'}</td>
+      <td style="font-size:12px;">${f.numero_factura_externa||'—'}</td>
+      <td style="font-family:'DM Mono',monospace;font-weight:600;color:var(--accent);">$${fmt(f.monto_total)}</td>
+      <td style="font-size:12px;">${fmtFecha(f.fecha_vencimiento)}</td>
+      <td><span class="badge ${ESTADO_BADGE[f.estado]||'badge-gray'}">${ESTADO_LABEL[f.estado]||f.estado}</span></td>
+      <td style="font-size:12px;">${fmtFecha(f.fecha_cobro)}</td>
+      <td style="text-align:right;">
+        <button class="btn sm" onclick="editarCobranza(${f.id})">✏</button>
+        <button class="btn sm green" onclick="cambiarEstadoCobranza(${f.id},'cobrada')" title="Marcar cobrada">✓</button>
+      </td>
+    </tr>`).join('');
+}
+
+let _editCobranzaId = null;
+function abrirModalCobranza(){
+  _editCobranzaId = null;
+  document.getElementById('modal-cobranza-title').textContent = 'Nueva cobranza';
+  ['cob-factura','cob-notas'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('cob-monto').value='';
+  document.getElementById('cob-estado').value='enviada';
+  document.getElementById('cob-canal').value='email';
+  document.getElementById('cob-periodo').value=document.getElementById('filtro-periodo').value;
+  document.getElementById('cob-vencimiento').value='';
+  document.getElementById('cob-cobro').value='';
+  abrirModal('modal-cobranza');
+}
+async function editarCobranza(id){
+  const f = _cobranzasData.find(x=>x.id===id);
+  if(!f) return;
+  _editCobranzaId = id;
+  document.getElementById('modal-cobranza-title').textContent = 'Editar cobranza';
+  document.getElementById('cob-cliente').value = f.cliente_id;
+  document.getElementById('cob-periodo').value = f.periodo;
+  document.getElementById('cob-factura').value = f.numero_factura_externa||'';
+  document.getElementById('cob-monto').value = f.monto_total||'';
+  document.getElementById('cob-estado').value = f.estado;
+  document.getElementById('cob-canal').value = f.canal_envio||'email';
+  document.getElementById('cob-vencimiento').value = f.fecha_vencimiento||'';
+  document.getElementById('cob-cobro').value = f.fecha_cobro||'';
+  document.getElementById('cob-notas').value = f.notas||'';
+  abrirModal('modal-cobranza');
+}
+async function guardarCobranza(){
+  const cliente_id = document.getElementById('cob-cliente').value;
+  const monto_total = parseFloat(document.getElementById('cob-monto').value);
+  const periodo = document.getElementById('cob-periodo').value;
+  if(!cliente_id||!periodo){ toast('Cliente y período son obligatorios'); return; }
+  if(isNaN(monto_total)){ toast('Ingresá un monto válido'); return; }
+  const data = {
+    cliente_id: parseInt(cliente_id), periodo, monto_total,
+    numero_factura_externa: document.getElementById('cob-factura').value.trim()||null,
+    estado: document.getElementById('cob-estado').value,
+    canal_envio: document.getElementById('cob-canal').value,
+    fecha_vencimiento: document.getElementById('cob-vencimiento').value||null,
+    fecha_cobro: document.getElementById('cob-cobro').value||null,
+    notas: document.getElementById('cob-notas').value.trim()
+  };
+  try{
+    if(_editCobranzaId){
+      await api('facturas?id=eq.'+_editCobranzaId,'PATCH',data);
+      toast('Cobranza actualizada');
+    }else{
+      await api('facturas','POST',data);
+      toast('Cobranza creada');
+    }
+    cerrarModal('modal-cobranza');
+    loadCobranzas();
+  }catch(e){ toast('Error: '+e.message); }
+}
+async function cambiarEstadoCobranza(id, estado){
+  try{
+    const data = {estado};
+    if(estado==='cobrada') data.fecha_cobro = new Date().toISOString().split('T')[0];
+    await api('facturas?id=eq.'+id,'PATCH',data);
+    toast('Estado actualizado');
+    loadCobranzas();
+  }catch(e){ toast('Error: '+e.message); }
+}
+
+// ── PRECIOS ──────────────────────────────────────────────────
+async function loadPrecios(){
+  const tbody = document.getElementById('precios-tbody');
+  tbody.innerHTML = '<tr><td colspan="5"><div class="loading"><span class="spinner"></span>Cargando...</div></td></tr>';
+  try{
+    const data = await api('actualizaciones_precio?order=created_at.desc');
+    if(!data?.length){
+      tbody.innerHTML='<tr><td colspan="5"><div class="empty"><div class="empty-icon">📈</div>Sin actualizaciones registradas</div></td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.map(p=>`
+      <tr>
+        <td style="font-family:'DM Mono',monospace;">${p.periodo||'—'}</td>
+        <td style="font-weight:600;color:var(--accent);">${p.indice_inflacion}%</td>
+        <td>${fmtFecha(p.fecha_aplicacion)}</td>
+        <td>${p.aplicado_por||'—'}</td>
+        <td style="font-size:12px;color:var(--text3);">${p.notas||'—'}</td>
+      </tr>`).join('');
+  }catch(e){ tbody.innerHTML=`<tr><td colspan="5"><div class="empty">Error: ${e.message}</div></td></tr>`; }
+}
+
+async function abrirModalPrecio(){
+  document.getElementById('prec-periodo').value = document.getElementById('filtro-periodo')?.value||'';
+  document.getElementById('prec-indice').value='';
+  document.getElementById('prec-usuario').value='';
+  document.getElementById('prec-fecha').value=new Date().toISOString().split('T')[0];
+  document.getElementById('prec-notas').value='';
+  abrirModal('modal-precio');
+}
+async function guardarPrecio(){
+  const periodo = document.getElementById('prec-periodo').value;
+  const indice = parseFloat(document.getElementById('prec-indice').value);
+  if(!periodo||isNaN(indice)||indice<=0){ toast('Período e índice son obligatorios'); return; }
+  
+  try{
+    // Guardar registro
+    await api('actualizaciones_precio','POST',{
+      periodo, indice_inflacion: indice,
+      fecha_aplicacion: document.getElementById('prec-fecha').value,
+      aplicado_por: document.getElementById('prec-usuario').value.trim(),
+      notas: document.getElementById('prec-notas').value.trim()
+    });
+    
+    // Actualizar precios de licencias activas en ARS
+    const factor = 1 + (indice/100);
+    const licencias = await api('licencias?estado=eq.activa&moneda=eq.ARS&select=id,precio_actual');
+    if(licencias?.length){
+      await Promise.all(licencias.map(l=>
+        api('licencias?id=eq.'+l.id,'PATCH',{precio_actual: Math.round(l.precio_actual*factor*100)/100})
+      ));
+    }
+    toast(`Precios actualizados (${licencias?.length||0} licencias)`);
+    cerrarModal('modal-precio');
+    loadPrecios();
+  }catch(e){ toast('Error: '+e.message); }
+}
+
+// ── INIT ─────────────────────────────────────────────────────
+async function init(){
+  // Cargar config guardada
+  document.getElementById('cfg-url').value = SUPA_URL;
+  document.getElementById('cfg-key').value = SUPA_KEY;
+  generarPeriodos();
+  const ok = await checkConnection();
+  if(ok) loadClientes();
+  else if(!SUPA_URL||!SUPA_KEY) showPage('config');
+}
+init();
+</script>
+</body>
+</html>
