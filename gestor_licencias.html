@@ -482,9 +482,10 @@ tr:hover td { background: var(--bg2); }
           <div class="page-title">Cobranzas</div>
           <div class="page-subtitle">Seguimiento mensual de pagos por cliente</div>
         </div>
-        <div style="display:flex;gap:8px;align-items:center;">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
           <select class="form-select" style="width:160px;" id="filtro-periodo" onchange="loadCobranzas()">
           </select>
+          <button class="btn" onclick="generarCobranzasMes()" style="border-color:var(--green);color:var(--green);">⚡ Generar cobranzas del mes</button>
           <button class="btn primary" onclick="abrirModalCobranza()">+ Nueva cobranza</button>
         </div>
       </div>
@@ -1290,6 +1291,70 @@ async function guardarPrecio(){
 }
 
 // ── INIT ─────────────────────────────────────────────────────
+
+// ── GENERAR COBRANZAS DEL MES ────────────────────────────────
+async function generarCobranzasMes(){
+  const periodo = document.getElementById('filtro-periodo').value;
+  if(!periodo){ toast('Seleccioná un período primero'); return; }
+
+  // Calcular fechas del período
+  const [year, month] = periodo.split('-').map(Number);
+  const fechaEmision = `${year}-${String(month).padStart(2,'0')}-01`;
+  // Último día del mes
+  const ultimoDia = new Date(year, month, 0).getDate();
+  const fechaVencimiento = `${year}-${String(month).padStart(2,'0')}-${ultimoDia}`;
+
+  // Confirmar
+  if(!confirm(`¿Generar cobranzas para ${periodo}?\n\nSe crearán borradores para todos los clientes con licencias activas que aún no tengan cobranza en este período.`)) return;
+
+  try{
+    // Traer licencias activas agrupadas por cliente
+    const licencias = await api('licencias?estado=eq.activa&select=cliente_id,precio_actual,moneda,clientes(id,nombre)');
+    if(!licencias?.length){ toast('Sin licencias activas'); return; }
+
+    // Agrupar por cliente — solo ARS por ahora
+    const porCliente = {};
+    licencias.forEach(l => {
+      const cid = l.cliente_id;
+      if(!porCliente[cid]) porCliente[cid] = { cliente_id: cid, nombre: l.clientes?.nombre||'', monto: 0 };
+      if(l.moneda === 'ARS') porCliente[cid].monto += (l.precio_actual||0);
+    });
+
+    // Ver cuáles ya tienen cobranza en este período
+    const existentes = await api(`facturas?periodo=eq.${periodo}&select=cliente_id`).catch(()=>[]);
+    const yaExisten = new Set((existentes||[]).map(f=>f.cliente_id));
+
+    // Filtrar los que no tienen cobranza aún y tienen monto > 0
+    const nuevos = Object.values(porCliente).filter(c => !yaExisten.has(c.cliente_id) && c.monto > 0);
+
+    if(!nuevos.length){
+      toast('Todos los clientes ya tienen cobranza para este período');
+      return;
+    }
+
+    // Insertar borradores
+    let creados = 0;
+    for(const c of nuevos){
+      await api('facturas', 'POST', {
+        cliente_id: c.cliente_id,
+        periodo,
+        monto_total: Math.round(c.monto * 100) / 100,
+        estado: 'borrador',
+        fecha_emision: fechaEmision,
+        fecha_vencimiento: fechaVencimiento,
+        canal_envio: 'email'
+      });
+      creados++;
+    }
+
+    toast(`✅ ${creados} cobranzas generadas para ${periodo}`);
+    loadCobranzas();
+  }catch(e){
+    toast('Error: ' + e.message);
+    console.error(e);
+  }
+}
+
 async function init(){
   // Cargar config guardada
   document.getElementById('cfg-url').value = SUPA_URL;
