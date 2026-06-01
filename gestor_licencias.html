@@ -405,6 +405,7 @@ tr:hover td { background: var(--bg2); }
             <option value="">Todas las cuentas</option>
             <option value="totem_nube">Totem Nube</option>
             <option value="gestion_play">Gestion Play</option>
+            <option value="validar">Validar</option>
           </select>
           <select class="form-select" style="width:140px;" id="filtro-estado-cliente" onchange="filtrarClientes()">
             <option value="">Todos</option>
@@ -459,6 +460,7 @@ tr:hover td { background: var(--bg2); }
             <option value="">Todas las cuentas</option>
             <option value="totem_nube">Totem Nube</option>
             <option value="gestion_play">Gestion Play</option>
+            <option value="validar">Validar</option>
           </select>
           <select class="form-select" style="width:130px;" id="filtro-estado-lic" onchange="filtrarLicencias()">
             <option value="activa">Activas</option>
@@ -641,6 +643,7 @@ tr:hover td { background: var(--bg2); }
       <select class="form-select" id="lic-cuenta">
         <option value="totem_nube">Totem Nube</option>
         <option value="gestion_play">Gestion Play</option>
+        <option value="validar">Validar</option>
       </select>
     </div>
     <div class="form-row">
@@ -924,10 +927,12 @@ async function loadClientes(){
     const activos = _clientesData.filter(c=>c.activo).length;
     const conTN = _clientesData.filter(c=>licCuentaMap[c.id]?.has('totem_nube')).length;
     const conGP = _clientesData.filter(c=>licCuentaMap[c.id]?.has('gestion_play')).length;
+    const conVAL = _clientesData.filter(c=>licCuentaMap[c.id]?.has('validar')).length;
     document.getElementById('clientes-stats').innerHTML =
       `<div class="stat-card"><div class="stat-val">${_clientesData.length}</div><div class="stat-label">Total clientes</div></div>`+
       `<div class="stat-card"><div class="stat-val" style="color:var(--accent);">${conTN}</div><div class="stat-label">Totem Nube</div></div>`+
-      `<div class="stat-card"><div class="stat-val" style="color:var(--blue);">${conGP}</div><div class="stat-label">Gestion Play</div></div>`;
+      `<div class="stat-card"><div class="stat-val" style="color:var(--blue);">${conGP}</div><div class="stat-label">Gestion Play</div></div>`+
+      `<div class="stat-card"><div class="stat-val" style="color:var(--green);">${conVAL}</div><div class="stat-label">Validar</div></div>`;
     
     _licCuentaMap = licCuentaMap;
     renderClientes(_clientesData, licCount);
@@ -1022,17 +1027,21 @@ async function loadLicencias(){
     const activas = _licenciasData.filter(l=>l.estado==='activa');
     const activasTN = activas.filter(l=>l.cuenta==='totem_nube');
     const activasGP = activas.filter(l=>l.cuenta==='gestion_play');
+    const activasVAL = activas.filter(l=>l.cuenta==='validar');
     const totalARS = activas.filter(l=>l.moneda==='ARS').reduce((s,l)=>s+(l.precio_actual||0),0);
     const totalTN = activasTN.filter(l=>l.moneda==='ARS').reduce((s,l)=>s+(l.precio_actual||0),0);
     const totalGP = activasGP.filter(l=>l.moneda==='ARS').reduce((s,l)=>s+(l.precio_actual||0),0);
+    const totalVAL = activasVAL.filter(l=>l.moneda==='ARS').reduce((s,l)=>s+(l.precio_actual||0),0);
     const totalUSD = activas.filter(l=>l.moneda==='USD').reduce((s,l)=>s+(l.precio_actual||0),0);
     document.getElementById('licencias-stats').innerHTML =
       `<div class="stat-card"><div class="stat-val">${activas.length}</div><div class="stat-label">Total activas</div></div>`+
       `<div class="stat-card"><div class="stat-val" style="color:var(--accent);">${activasTN.length}</div><div class="stat-label">Totem Nube</div></div>`+
       `<div class="stat-card"><div class="stat-val" style="color:var(--blue);">${activasGP.length}</div><div class="stat-label">Gestion Play</div></div>`+
+      `<div class="stat-card"><div class="stat-val" style="color:var(--green);">${activasVAL.length}</div><div class="stat-label">Validar</div></div>`+
       `<div class="stat-card"><div class="stat-val">$${fmt(totalARS)}</div><div class="stat-label">Total mensual ARS</div></div>`+
       `<div class="stat-card"><div class="stat-val" style="color:var(--accent);">$${fmt(totalTN)}</div><div class="stat-label">Totem Nube ARS</div></div>`+
       `<div class="stat-card"><div class="stat-val" style="color:var(--blue);">$${fmt(totalGP)}</div><div class="stat-label">Gestion Play ARS</div></div>`+
+      `<div class="stat-card"><div class="stat-val" style="color:var(--green);">$${fmt(totalVAL)}</div><div class="stat-label">Validar ARS</div></div>`+
       (totalUSD>0?`<div class="stat-card"><div class="stat-val">USD ${fmt(totalUSD)}</div><div class="stat-label">Total mensual USD</div></div>`:'');
     
     // Poblar selector de clientes en modal
@@ -1063,8 +1072,8 @@ function filtrarLicencias(){
 function renderLicencias(data){
   const tbody = document.getElementById('licencias-tbody');
   if(!data.length){ tbody.innerHTML='<tr><td colspan="7"><div class="empty"><div class="empty-icon">🔑</div>Sin licencias</div></td></tr>'; return; }
-  const CUENTA_LABELS = {totem_nube:'Totem Nube', gestion_play:'Gestion Play'};
-  const CUENTA_BADGE = {totem_nube:'badge-amber', gestion_play:'badge-blue'};
+  const CUENTA_LABELS = {totem_nube:'Totem Nube', gestion_play:'Gestion Play', validar:'Validar'};
+  const CUENTA_BADGE = {totem_nube:'badge-amber', gestion_play:'badge-blue', validar:'badge-green'};
   tbody.innerHTML = data.map(l=>`
     <tr>
       <td><strong>${l.clientes?.nombre||'—'}</strong></td>
