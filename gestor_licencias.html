@@ -1666,5 +1666,16 @@ async function generarCobranzasMes(){
     console.error(e);
   }
 }
+async function init(){
+  document.getElementById('cfg-url').value = SUPA_URL;
+  document.getElementById('cfg-key').value = SUPA_KEY;
+  generarPeriodos();
+  const ok = await checkConnection();
+  if(ok) loadClientes();
+  else if(!SUPA_URL||!SUPA_KEY) showPage('config');
+}
+init();
+</script>
 
-
+</body>
+</html>
