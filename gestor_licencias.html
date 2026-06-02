@@ -506,6 +506,12 @@ tr:hover td { background: var(--bg2); }
       <div class="table-wrap">
         <div class="table-filters">
           <input class="search-input" type="text" id="search-cobranzas" placeholder="🔍 Buscar cliente..." oninput="filtrarCobranzas()">
+          <select class="form-select" style="width:160px;" id="filtro-cuenta-cob" onchange="filtrarCobranzas()">
+            <option value="">Todas las carteras</option>
+            <option value="totem_nube">Totem Nube</option>
+            <option value="gestion_play">Gestion Play</option>
+            <option value="validar">Validar</option>
+          </select>
           <select class="form-select" style="width:160px;" id="filtro-estado-cob" onchange="filtrarCobranzas()">
             <option value="">Todos los estados</option>
             <option value="borrador">Borrador</option>
@@ -519,6 +525,7 @@ tr:hover td { background: var(--bg2); }
           <thead>
             <tr>
               <th>Cliente</th>
+              <th>Cartera</th>
               <th>Período</th>
               <th>N° Factura</th>
               <th>Monto</th>
@@ -716,9 +723,17 @@ tr:hover td { background: var(--bg2); }
         <select class="form-select" id="cob-cliente"></select>
       </div>
       <div class="form-group">
-        <label class="form-label">Período *</label>
-        <input class="form-input" type="month" id="cob-periodo">
+        <label class="form-label">Cartera *</label>
+        <select class="form-select" id="cob-cuenta">
+          <option value="totem_nube">Totem Nube</option>
+          <option value="gestion_play">Gestion Play</option>
+          <option value="validar">Validar</option>
+        </select>
       </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Período *</label>
+      <input class="form-input" type="month" id="cob-periodo">
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -1168,9 +1183,9 @@ function generarPeriodos(){
 async function loadCobranzas(){
   const tbody = document.getElementById('cobranzas-tbody');
   const periodo = document.getElementById('filtro-periodo').value;
-  tbody.innerHTML = '<tr><td colspan="8"><div class="loading"><span class="spinner"></span>Cargando...</div></td></tr>';
+  tbody.innerHTML = '<tr><td colspan="9"><div class="loading"><span class="spinner"></span>Cargando...</div></td></tr>';
   try{
-    const data = await api(`facturas?periodo=eq.${periodo}&select=id,cliente_id,periodo,numero_factura_externa,monto_total,estado,fecha_vencimiento,fecha_cobro,canal_envio,notas,clientes(nombre)&order=clientes(nombre).asc`);
+    const data = await api(`facturas?periodo=eq.${periodo}&select=id,cliente_id,periodo,numero_factura_externa,monto_total,estado,fecha_vencimiento,fecha_cobro,canal_envio,notas,cuenta,clientes(nombre)&order=cuenta.asc,clientes(nombre).asc`);
     _cobranzasData = data||[];
     
     const cobradas = _cobranzasData.filter(f=>f.estado==='cobrada');
@@ -1196,21 +1211,26 @@ async function loadCobranzas(){
 function filtrarCobranzas(){
   const q = document.getElementById('search-cobranzas').value.toLowerCase();
   const est = document.getElementById('filtro-estado-cob').value;
+  const cuenta = document.getElementById('filtro-cuenta-cob').value;
   const filtered = _cobranzasData.filter(f=>{
     const nombre = f.clientes?.nombre||'';
-    const matchQ = !q || nombre.toLowerCase().includes(q);
+    const matchQ = !q || nombre.toLowerCase().includes(q) || (f.cuenta==='validar' && 'validar'.includes(q));
     const matchEst = !est || f.estado===est;
-    return matchQ && matchEst;
+    const matchCuenta = !cuenta || f.cuenta===cuenta;
+    return matchQ && matchEst && matchCuenta;
   });
   renderCobranzas(filtered);
 }
 
 function renderCobranzas(data){
   const tbody = document.getElementById('cobranzas-tbody');
-  if(!data.length){ tbody.innerHTML='<tr><td colspan="8"><div class="empty"><div class="empty-icon">💰</div>Sin cobranzas para este período</div></td></tr>'; return; }
+  if(!data.length){ tbody.innerHTML='<tr><td colspan="9"><div class="empty"><div class="empty-icon">💰</div>Sin cobranzas para este período</div></td></tr>'; return; }
+  const COB_CUENTA_LABELS = {totem_nube:'Totem Nube', gestion_play:'Gestion Play', validar:'Validar'};
+  const COB_CUENTA_BADGE = {totem_nube:'badge-amber', gestion_play:'badge-blue', validar:'badge-green'};
   tbody.innerHTML = data.map(f=>`
     <tr>
-      <td><strong>${f.clientes?.nombre||'—'}</strong></td>
+      <td><strong>${f.cuenta==='validar'?'VALIDAR (total consolidado)':f.clientes?.nombre||'—'}</strong></td>
+      <td><span class="badge ${COB_CUENTA_BADGE[f.cuenta]||'badge-gray'}">${COB_CUENTA_LABELS[f.cuenta]||f.cuenta||'—'}</span></td>
       <td style="font-family:'DM Mono',monospace;font-size:12px;">${f.periodo||'—'}</td>
       <td style="font-size:12px;">${f.numero_factura_externa||'—'}</td>
       <td style="font-family:'DM Mono',monospace;font-weight:600;color:var(--accent);">$${fmt(f.monto_total)}</td>
@@ -1243,6 +1263,7 @@ async function editarCobranza(id){
   _editCobranzaId = id;
   document.getElementById('modal-cobranza-title').textContent = 'Editar cobranza';
   document.getElementById('cob-cliente').value = f.cliente_id;
+  document.getElementById('cob-cuenta').value = f.cuenta||'totem_nube';
   document.getElementById('cob-periodo').value = f.periodo;
   document.getElementById('cob-factura').value = f.numero_factura_externa||'';
   document.getElementById('cob-monto').value = f.monto_total||'';
@@ -1259,8 +1280,9 @@ async function guardarCobranza(){
   const periodo = document.getElementById('cob-periodo').value;
   if(!cliente_id||!periodo){ toast('Cliente y período son obligatorios'); return; }
   if(isNaN(monto_total)){ toast('Ingresá un monto válido'); return; }
+  const cuentaCob = document.getElementById('cob-cuenta')?.value||'totem_nube';
   const data = {
-    cliente_id: parseInt(cliente_id), periodo, monto_total,
+    cliente_id: parseInt(cliente_id), periodo, monto_total, cuenta: cuentaCob,
     numero_factura_externa: document.getElementById('cob-factura').value.trim()||null,
     estado: document.getElementById('cob-estado').value,
     canal_envio: document.getElementById('cob-canal').value,
@@ -1373,56 +1395,82 @@ async function generarCobranzasMes(){
   const periodo = document.getElementById('filtro-periodo').value;
   if(!periodo){ toast('Seleccioná un período primero'); return; }
 
-  // Calcular fechas del período
   const [year, month] = periodo.split('-').map(Number);
   const fechaEmision = `${year}-${String(month).padStart(2,'0')}-01`;
-  // Último día del mes
   const ultimoDia = new Date(year, month, 0).getDate();
   const fechaVencimiento = `${year}-${String(month).padStart(2,'0')}-${ultimoDia}`;
 
-  // Confirmar
-  if(!confirm(`¿Generar cobranzas para ${periodo}?\n\nSe crearán borradores para todos los clientes con licencias activas que aún no tengan cobranza en este período.`)) return;
+  if(!confirm(`¿Generar cobranzas para ${periodo}?\n\nSe crearán borradores para Totem Nube, Gestion Play y Validar.`)) return;
 
   try{
-    // Traer licencias activas agrupadas por cliente
-    const licencias = await api('licencias?estado=eq.activa&select=cliente_id,precio_actual,moneda,clientes(id,nombre)');
+    // Traer todas las licencias activas
+    const licencias = await api('licencias?estado=eq.activa&select=cliente_id,precio_actual,moneda,cuenta,clientes(id,nombre)');
     if(!licencias?.length){ toast('Sin licencias activas'); return; }
 
-    // Agrupar por cliente — solo ARS por ahora
-    const porCliente = {};
-    licencias.forEach(l => {
-      const cid = l.cliente_id;
-      if(!porCliente[cid]) porCliente[cid] = { cliente_id: cid, nombre: l.clientes?.nombre||'', monto: 0 };
-      if(l.moneda === 'ARS') porCliente[cid].monto += (l.precio_actual||0);
-    });
+    // Ver cobranzas existentes
+    const existentes = await api(`facturas?periodo=eq.${periodo}&select=cliente_id,cuenta`).catch(()=>[]);
+    const yaExistenTN = new Set(existentes.filter(f=>f.cuenta==='totem_nube').map(f=>f.cliente_id));
+    const yaExistenGP = new Set(existentes.filter(f=>f.cuenta==='gestion_play').map(f=>f.cliente_id));
+    const yaExisteValidar = existentes.some(f=>f.cuenta==='validar');
 
-    // Ver cuáles ya tienen cobranza en este período
-    const existentes = await api(`facturas?periodo=eq.${periodo}&select=cliente_id`).catch(()=>[]);
-    const yaExisten = new Set((existentes||[]).map(f=>f.cliente_id));
-
-    // Filtrar los que no tienen cobranza aún y tienen monto > 0
-    const nuevos = Object.values(porCliente).filter(c => !yaExisten.has(c.cliente_id) && c.monto > 0);
-
-    if(!nuevos.length){
-      toast('Todos los clientes ya tienen cobranza para este período');
-      return;
-    }
-
-    // Insertar borradores
     let creados = 0;
-    for(const c of nuevos){
-      await api('facturas', 'POST', {
-        cliente_id: c.cliente_id,
-        periodo,
-        monto_total: Math.round(c.monto * 100) / 100,
-        estado: 'borrador',
-        fecha_emision: fechaEmision,
-        fecha_vencimiento: fechaVencimiento,
-        canal_envio: 'email'
+
+    // ── TOTEM NUBE: una por cliente
+    const porClienteTN = {};
+    licencias.filter(l=>l.cuenta==='totem_nube' && l.moneda==='ARS').forEach(l=>{
+      const cid = l.cliente_id;
+      if(!porClienteTN[cid]) porClienteTN[cid] = { cliente_id: cid, monto: 0 };
+      porClienteTN[cid].monto += (l.precio_actual||0);
+    });
+    for(const c of Object.values(porClienteTN)){
+      if(yaExistenTN.has(c.cliente_id) || c.monto<=0) continue;
+      await api('facturas','POST',{
+        cliente_id: c.cliente_id, periodo, cuenta: 'totem_nube',
+        monto_total: Math.round(c.monto*100)/100,
+        estado: 'borrador', fecha_emision: fechaEmision,
+        fecha_vencimiento: fechaVencimiento, canal_envio: 'email'
       });
       creados++;
     }
 
+    // ── GESTION PLAY: una por cliente
+    const porClienteGP = {};
+    licencias.filter(l=>l.cuenta==='gestion_play' && l.moneda==='ARS').forEach(l=>{
+      const cid = l.cliente_id;
+      if(!porClienteGP[cid]) porClienteGP[cid] = { cliente_id: cid, monto: 0 };
+      porClienteGP[cid].monto += (l.precio_actual||0);
+    });
+    for(const c of Object.values(porClienteGP)){
+      if(yaExistenGP.has(c.cliente_id) || c.monto<=0) continue;
+      await api('facturas','POST',{
+        cliente_id: c.cliente_id, periodo, cuenta: 'gestion_play',
+        monto_total: Math.round(c.monto*100)/100,
+        estado: 'borrador', fecha_emision: fechaEmision,
+        fecha_vencimiento: fechaVencimiento, canal_envio: 'email'
+      });
+      creados++;
+    }
+
+    // ── VALIDAR: una sola fila con el total consolidado
+    if(!yaExisteValidar){
+      const totalValidar = licencias
+        .filter(l=>l.cuenta==='validar' && l.moneda==='ARS')
+        .reduce((s,l)=>s+(l.precio_actual||0),0);
+      if(totalValidar>0){
+        // Usar el primer cliente Validar como referencia (o null)
+        const primerValidar = licencias.find(l=>l.cuenta==='validar');
+        await api('facturas','POST',{
+          cliente_id: primerValidar?.cliente_id||null, periodo, cuenta: 'validar',
+          monto_total: Math.round(totalValidar*100)/100,
+          estado: 'borrador', fecha_emision: fechaEmision,
+          fecha_vencimiento: fechaVencimiento, canal_envio: 'email',
+          notas: 'Total consolidado Validar'
+        });
+        creados++;
+      }
+    }
+
+    if(!creados){ toast('Todas las cobranzas ya existen para este período'); return; }
     toast(`✅ ${creados} cobranzas generadas para ${periodo}`);
     loadCobranzas();
   }catch(e){
