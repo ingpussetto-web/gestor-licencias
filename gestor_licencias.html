@@ -1188,16 +1188,7 @@ async function loadCobranzas(){
     const data = await api(`facturas?periodo=eq.${periodo}&select=id,cliente_id,periodo,numero_factura_externa,monto_total,estado,fecha_vencimiento,fecha_cobro,canal_envio,notas,cuenta,clientes(nombre)&order=cuenta.asc,clientes(nombre).asc`);
     _cobranzasData = data||[];
     
-    const cobradas = _cobranzasData.filter(f=>f.estado==='cobrada');
-    const pendientes = _cobranzasData.filter(f=>['enviada','borrador'].includes(f.estado));
-    const vencidas = _cobranzasData.filter(f=>f.estado==='vencida');
-    const totalCobrado = cobradas.reduce((s,f)=>s+(f.monto_total||0),0);
-    const totalPendiente = pendientes.reduce((s,f)=>s+(f.monto_total||0),0);
-    
-    document.getElementById('cobranzas-stats').innerHTML =
-      `<div class="stat-card"><div class="stat-val" style="color:var(--green);">$${fmt(totalCobrado)}</div><div class="stat-label">Cobrado</div></div>`+
-      `<div class="stat-card"><div class="stat-val" style="color:var(--amber);">$${fmt(totalPendiente)}</div><div class="stat-label">Pendiente</div></div>`+
-      `<div class="stat-card"><div class="stat-val" style="color:var(--red);">${vencidas.length}</div><div class="stat-label">Vencidas</div></div>`;
+    actualizarStatsCobranzas(_cobranzasData);
 
     // Poblar selector clientes modal
     const clientes = await getClientes();
@@ -1220,6 +1211,19 @@ function filtrarCobranzas(){
     return matchQ && matchEst && matchCuenta;
   });
   renderCobranzas(filtered);
+  actualizarStatsCobranzas(filtered);
+}
+
+function actualizarStatsCobranzas(data){
+  const cobradas = data.filter(f=>f.estado==='cobrada');
+  const pendientes = data.filter(f=>['enviada','borrador'].includes(f.estado));
+  const vencidas = data.filter(f=>f.estado==='vencida');
+  const totalCobrado = cobradas.reduce((s,f)=>s+(f.monto_total||0),0);
+  const totalPendiente = pendientes.reduce((s,f)=>s+(f.monto_total||0),0);
+  document.getElementById('cobranzas-stats').innerHTML =
+    `<div class="stat-card"><div class="stat-val" style="color:var(--green);">$${fmt(totalCobrado)}</div><div class="stat-label">Cobrado (${cobradas.length})</div></div>`+
+    `<div class="stat-card"><div class="stat-val" style="color:var(--amber);">$${fmt(totalPendiente)}</div><div class="stat-label">Pendiente (${pendientes.length})</div></div>`+
+    `<div class="stat-card"><div class="stat-val" style="color:var(--red);">${vencidas.length}</div><div class="stat-label">Vencidas</div></div>`;
 }
 
 function renderCobranzas(data){
@@ -1239,7 +1243,10 @@ function renderCobranzas(data){
       <td style="font-size:12px;">${fmtFecha(f.fecha_cobro)}</td>
       <td style="text-align:right;">
         <button class="btn sm" onclick="editarCobranza(${f.id})">✏</button>
-        <button class="btn sm green" onclick="cambiarEstadoCobranza(${f.id},'cobrada')" title="Marcar cobrada">✓</button>
+        ${f.estado==='cobrada'
+          ? `<button class="btn sm" style="border-color:var(--green);color:var(--green);" onclick="cambiarEstadoCobranza(${f.id},'enviada')" title="Desmarcar cobrada">✓</button>`
+          : `<button class="btn sm" style="border-color:var(--border2);color:var(--text3);" onclick="cambiarEstadoCobranza(${f.id},'cobrada')" title="Marcar cobrada">✓</button>`
+        }
       </td>
     </tr>`).join('');
 }
