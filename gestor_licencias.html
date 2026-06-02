@@ -1605,12 +1605,11 @@ async function generarCobranzasMes(){
     let actualizados = 0;
 
     // Helper: crear o actualizar factura
-    async function upsertFactura(cliente_id, cuenta, monto){
+    const upsertFactura = async (cliente_id, cuenta, monto) => {
       if(monto <= 0) return;
       const key = cuenta+'|'+(cliente_id||'validar');
       const montoRound = Math.round(monto * 100) / 100;
       if(existMap[key]){
-        // Actualizar monto si cambió
         if(Math.abs(existMap[key].monto_total - montoRound) > 0.01){
           await api('facturas?id=eq.'+existMap[key].id,'PATCH',{ monto_total: montoRound });
           actualizados++;
@@ -1626,7 +1625,7 @@ async function generarCobranzasMes(){
         });
         creados++;
       }
-    }
+    };
 
     // ── TOTEM NUBE: una por cliente
     const porClienteTN = {};
