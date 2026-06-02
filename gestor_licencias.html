@@ -1577,88 +1577,90 @@ async function generarCobranzasMes(){
   const fechaEmision = `${year}-${String(month).padStart(2,'0')}-01`;
   const ultimoDia = new Date(year, month, 0).getDate();
   const fechaVencimiento = `${year}-${String(month).padStart(2,'0')}-${ultimoDia}`;
+  const periodoDate = new Date(year, month-1, 1);
 
-  if(!confirm(`¿Generar cobranzas para ${periodo}?\n\nSe crearán borradores para Totem Nube, Gestion Play y Validar.`)) return;
+  if(!confirm(`¿Generar/actualizar cobranzas para ${periodo}?\n\nSe crearán o actualizarán los montos para todas las carteras, incluyendo licencias cuyo inicio sea en este período o anterior.`)) return;
 
   try{
-    // Traer todas las licencias activas
-    // Solo licencias cuyo inicio de cobranza (fecha_alta) sea <= período actual o no tenga fecha
+    // Traer TODAS las licencias activas con fecha_alta
     const licencias = await api('licencias?estado=eq.activa&select=cliente_id,precio_actual,moneda,cuenta,fecha_alta,clientes(id,nombre)');
     if(!licencias?.length){ toast('Sin licencias activas'); return; }
 
-    // Ver cobranzas existentes
-    const existentes = await api(`facturas?periodo=eq.${periodo}&select=cliente_id,cuenta`).catch(()=>[]);
-    const yaExistenTN = new Set(existentes.filter(f=>f.cuenta==='totem_nube').map(f=>f.cliente_id));
-    const yaExistenGP = new Set(existentes.filter(f=>f.cuenta==='gestion_play').map(f=>f.cliente_id));
-    const yaExisteValidar = existentes.some(f=>f.cuenta==='validar');
+    // Filtrar licencias activas para este período (fecha_alta <= primer día del mes o sin fecha)
+    const licsDelPeriodo = licencias.filter(l=>{
+      if(!l.fecha_alta) return true;
+      return new Date(l.fecha_alta) <= periodoDate;
+    });
+
+    // Traer cobranzas existentes del período
+    const existentes = await api(`facturas?periodo=eq.${periodo}&select=id,cliente_id,cuenta,monto_total`).catch(()=>[]);
+    // Mapas: cuenta+clienteId → factura existente
+    const existMap = {};
+    (existentes||[]).forEach(f=>{
+      const key = f.cuenta+'|'+(f.cliente_id||'validar');
+      existMap[key] = f;
+    });
 
     let creados = 0;
+    let actualizados = 0;
 
-    // Filtrar licencias cuyo inicio es <= período (o sin fecha = siempre incluir)
-    const periodoDate = new Date(year, month-1, 1);
-    const licsFiltradas = licencias.filter(l=>{
-      if(!l.fecha_alta) return true;
-      const inicio = new Date(l.fecha_alta);
-      return inicio <= periodoDate;
-    });
-
-    // ── TOTEM NUBE: una por cliente
-    const porClienteTN = {};
-    licsFiltradas.filter(l=>l.cuenta==='totem_nube' && l.moneda==='ARS').forEach(l=>{
-      const cid = l.cliente_id;
-      if(!porClienteTN[cid]) porClienteTN[cid] = { cliente_id: cid, monto: 0 };
-      porClienteTN[cid].monto += (l.precio_actual||0);
-    });
-    for(const c of Object.values(porClienteTN)){
-      if(yaExistenTN.has(c.cliente_id) || c.monto<=0) continue;
-      await api('facturas','POST',{
-        cliente_id: c.cliente_id, periodo, cuenta: 'totem_nube',
-        monto_total: Math.round(c.monto*100)/100,
-        estado: 'borrador', fecha_emision: fechaEmision,
-        fecha_vencimiento: fechaVencimiento, canal_envio: 'email'
-      });
-      creados++;
-    }
-
-    // ── GESTION PLAY: una por cliente
-    const porClienteGP = {};
-    licsFiltradas.filter(l=>l.cuenta==='gestion_play' && l.moneda==='ARS').forEach(l=>{
-      const cid = l.cliente_id;
-      if(!porClienteGP[cid]) porClienteGP[cid] = { cliente_id: cid, monto: 0 };
-      porClienteGP[cid].monto += (l.precio_actual||0);
-    });
-    for(const c of Object.values(porClienteGP)){
-      if(yaExistenGP.has(c.cliente_id) || c.monto<=0) continue;
-      await api('facturas','POST',{
-        cliente_id: c.cliente_id, periodo, cuenta: 'gestion_play',
-        monto_total: Math.round(c.monto*100)/100,
-        estado: 'borrador', fecha_emision: fechaEmision,
-        fecha_vencimiento: fechaVencimiento, canal_envio: 'email'
-      });
-      creados++;
-    }
-
-    // ── VALIDAR: una sola fila con el total consolidado
-    if(!yaExisteValidar){
-      const totalValidar = licencias
-        .filter(l=>l.cuenta==='validar' && l.moneda==='ARS')
-        .reduce((s,l)=>s+(l.precio_actual||0),0);
-      if(totalValidar>0){
-        // Usar el primer cliente Validar como referencia (o null)
-        const primerValidar = licsFiltradas.find(l=>l.cuenta==='validar');
+    // Helper: crear o actualizar factura
+    async function upsertFactura(cliente_id, cuenta, monto){
+      if(monto <= 0) return;
+      const key = cuenta+'|'+(cliente_id||'validar');
+      const montoRound = Math.round(monto * 100) / 100;
+      if(existMap[key]){
+        // Actualizar monto si cambió
+        if(Math.abs(existMap[key].monto_total - montoRound) > 0.01){
+          await api('facturas?id=eq.'+existMap[key].id,'PATCH',{ monto_total: montoRound });
+          actualizados++;
+        }
+      } else {
         await api('facturas','POST',{
-          cliente_id: primerValidar?.cliente_id||null, periodo, cuenta: 'validar',
-          monto_total: Math.round(totalValidar*100)/100,
-          estado: 'borrador', fecha_emision: fechaEmision,
-          fecha_vencimiento: fechaVencimiento, canal_envio: 'email',
-          notas: 'Total consolidado Validar'
+          cliente_id, periodo, cuenta,
+          monto_total: montoRound,
+          estado: 'borrador',
+          fecha_emision: fechaEmision,
+          fecha_vencimiento: fechaVencimiento,
+          canal_envio: 'email'
         });
         creados++;
       }
     }
 
-    if(!creados){ toast('Todas las cobranzas ya existen para este período'); return; }
-    toast(`✅ ${creados} cobranzas generadas para ${periodo}`);
+    // ── TOTEM NUBE: una por cliente
+    const porClienteTN = {};
+    licsDelPeriodo.filter(l=>l.cuenta==='totem_nube' && l.moneda==='ARS').forEach(l=>{
+      if(!porClienteTN[l.cliente_id]) porClienteTN[l.cliente_id] = 0;
+      porClienteTN[l.cliente_id] += (l.precio_actual||0);
+    });
+    for(const [cid, monto] of Object.entries(porClienteTN)){
+      await upsertFactura(parseInt(cid), 'totem_nube', monto);
+    }
+
+    // ── GESTION PLAY: una por cliente
+    const porClienteGP = {};
+    licsDelPeriodo.filter(l=>l.cuenta==='gestion_play' && l.moneda==='ARS').forEach(l=>{
+      if(!porClienteGP[l.cliente_id]) porClienteGP[l.cliente_id] = 0;
+      porClienteGP[l.cliente_id] += (l.precio_actual||0);
+    });
+    for(const [cid, monto] of Object.entries(porClienteGP)){
+      await upsertFactura(parseInt(cid), 'gestion_play', monto);
+    }
+
+    // ── VALIDAR: una sola fila consolidada
+    const totalValidar = licsDelPeriodo
+      .filter(l=>l.cuenta==='validar' && l.moneda==='ARS')
+      .reduce((s,l)=>s+(l.precio_actual||0), 0);
+    if(totalValidar > 0){
+      const primerValidar = licsDelPeriodo.find(l=>l.cuenta==='validar');
+      await upsertFactura(primerValidar?.cliente_id||null, 'validar', totalValidar);
+    }
+
+    const msg = [];
+    if(creados) msg.push(`${creados} nuevas`);
+    if(actualizados) msg.push(`${actualizados} actualizadas`);
+    toast(msg.length ? `✅ Cobranzas: ${msg.join(', ')}` : 'Sin cambios para este período');
     loadCobranzas();
   }catch(e){
     toast('Error: ' + e.message);
@@ -1666,16 +1668,4 @@ async function generarCobranzasMes(){
   }
 }
 
-async function init(){
-  // Cargar config guardada
-  document.getElementById('cfg-url').value = SUPA_URL;
-  document.getElementById('cfg-key').value = SUPA_KEY;
-  generarPeriodos();
-  const ok = await checkConnection();
-  if(ok) loadClientes();
-  else if(!SUPA_URL||!SUPA_KEY) showPage('config');
-}
-init();
-</script>
-</body>
-</html>
+
