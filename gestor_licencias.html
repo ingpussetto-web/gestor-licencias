@@ -629,7 +629,7 @@ tr:hover td { background: var(--bg2); }
       <label class="form-label">Notas</label>
       <textarea class="form-input" id="cli-notas" rows="2" style="resize:vertical;"></textarea>
     </div>
-    <div style="border-top:1px solid var(--border);margin:16px 0 14px;padding-top:14px;">
+    <div id="cli-licencias-seccion" style="border-top:1px solid var(--border);margin:16px 0 14px;padding-top:14px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
         <div style="font-size:11px;font-weight:600;color:var(--text3);font-family:'DM Mono',monospace;letter-spacing:0.06em;text-transform:uppercase;">Licencias (opcional)</div>
         <button type="button" class="btn sm" onclick="agregarFilaLicencia()" style="border-color:var(--accent);color:var(--accent);">+ Agregar licencia</button>
@@ -1020,6 +1020,7 @@ function abrirModalCliente(){
   ['cli-nombre','cli-cuit','cli-email','cli-tel','cli-contacto','cli-notas'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('cli-activo').value = 'true';
   document.getElementById('cli-licencias-lista').innerHTML = '';
+  document.getElementById('cli-licencias-seccion').style.display = 'block';
   abrirModal('modal-cliente');
 }
 async function editarCliente(id){
@@ -1034,7 +1035,82 @@ async function editarCliente(id){
   document.getElementById('cli-contacto').value = c.contacto||'';
   document.getElementById('cli-notas').value = c.notas||'';
   document.getElementById('cli-activo').value = String(c.activo);
+
+  // Cargar licencias existentes del cliente
+  const lista = document.getElementById('cli-licencias-lista');
+  lista.innerHTML = '<div style="padding:8px;text-align:center;color:var(--text3);font-size:12px;">⏳ Cargando licencias...</div>';
+  document.getElementById('cli-licencias-seccion').style.display = 'block';
+  document.getElementById('cli-licencias-seccion').querySelector('button').style.display = 'none'; // ocultar botón + al editar
+
+  try{
+    const lics = await api('licencias?cliente_id=eq.'+id+'&order=id.asc&select=id,cuenta,tipo,descripcion,precio_actual,estado,fecha_alta');
+    lista.innerHTML = '';
+    if(!lics?.length){
+      lista.innerHTML = '<div style="padding:8px;color:var(--text3);font-size:12px;">Sin licencias cargadas</div>';
+    } else {
+      const tiposOpts = (sel)=>['turnero','publicidad','ia','autogestion','cuos_atencion','cuos_vigilancia','agro']
+        .map(t=>`<option value="${t}" ${t===sel?'selected':''}>${{turnero:'Turnero',publicidad:'Publicidad digital',ia:'Agente IA',autogestion:'Autogestión y pagos',cuos_atencion:'CUOS Atención remota',cuos_vigilancia:'CUOS Vigilancia',agro:'Agro'}[t]}</option>`).join('');
+      const cuentasOpts = (sel)=>['totem_nube','gestion_play','validar']
+        .map(c=>`<option value="${c}" ${c===sel?'selected':''}>${{totem_nube:'Totem Nube',gestion_play:'Gestion Play',validar:'Validar'}[c]}</option>`).join('');
+      const estadosOpts = (sel)=>['activa','inactiva']
+        .map(e=>`<option value="${e}" ${e===sel?'selected':''}>${e==='activa'?'Activa':'Inactiva'}</option>`).join('');
+
+      lics.forEach(l=>{
+        const row = document.createElement('div');
+        row.dataset.licId = l.id;
+        row.style.cssText = 'background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;';
+        row.innerHTML = `
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:end;margin-bottom:8px;">
+            <div>
+              <div class="form-label" style="margin-bottom:4px;">Cartera</div>
+              <select class="form-select" data-field="cuenta">${cuentasOpts(l.cuenta)}</select>
+            </div>
+            <div>
+              <div class="form-label" style="margin-bottom:4px;">Tipo</div>
+              <select class="form-select" data-field="tipo">${tiposOpts(l.tipo)}</select>
+            </div>
+            <div>
+              <div class="form-label" style="margin-bottom:4px;">Estado</div>
+              <select class="form-select" data-field="estado">${estadosOpts(l.estado)}</select>
+            </div>
+            <button type="button" onclick="guardarLicenciaInline(this)" data-lic-id="${l.id}" style="height:34px;padding:0 12px;border:1px solid var(--green);border-radius:8px;background:var(--surface);color:var(--green);cursor:pointer;font-size:13px;white-space:nowrap;">💾</button>
+          </div>
+          <div style="display:grid;grid-template-columns:2fr 1fr;gap:8px;">
+            <div>
+              <div class="form-label" style="margin-bottom:4px;">Descripción</div>
+              <input class="form-input" data-field="desc" type="text" value="${l.descripcion||''}">
+            </div>
+            <div>
+              <div class="form-label" style="margin-bottom:4px;">Precio ARS</div>
+              <input class="form-input" data-field="precio" type="number" min="0" step="0.01" value="${l.precio_actual||0}">
+            </div>
+          </div>`;
+        lista.appendChild(row);
+      });
+    }
+  }catch(e){
+    lista.innerHTML = '<div style="color:var(--red);font-size:12px;">Error: '+e.message+'</div>';
+  }
   abrirModal('modal-cliente');
+}
+
+async function guardarLicenciaInline(btn){
+  const licId = btn.dataset.licId;
+  const row = btn.closest('[data-lic-id]') || btn.closest('[style]');
+  const cuenta = row.querySelector('[data-field="cuenta"]')?.value;
+  const tipo = row.querySelector('[data-field="tipo"]')?.value;
+  const estado = row.querySelector('[data-field="estado"]')?.value;
+  const desc = row.querySelector('[data-field="desc"]')?.value?.trim()||'';
+  const precio = parseFloat(row.querySelector('[data-field="precio"]')?.value);
+  if(isNaN(precio)){ toast('Precio inválido'); return; }
+  try{
+    await api('licencias?id=eq.'+licId,'PATCH',{cuenta,tipo,estado,descripcion:desc,precio_actual:precio});
+    btn.textContent = '✓';
+    btn.style.borderColor = 'var(--accent)';
+    btn.style.color = 'var(--accent)';
+    setTimeout(()=>{ btn.textContent='💾'; btn.style.borderColor='var(--green)'; btn.style.color='var(--green)'; }, 1500);
+    toast('Licencia actualizada');
+  }catch(e){ toast('Error: '+e.message); }
 }
 function agregarFilaLicencia(){
   const lista = document.getElementById('cli-licencias-lista');
@@ -1072,6 +1148,10 @@ function agregarFilaLicencia(){
         <div class="form-label" style="margin-bottom:4px;">Cantidad</div>
         <input class="form-input" data-field="qty" type="number" min="1" value="1" style="text-align:center;">
       </div>
+    </div>
+    <div style="margin-top:8px;">
+      <div class="form-label" style="margin-bottom:4px;">Inicio cobranza (mes)</div>
+      <input class="form-input" data-field="inicio" type="month" style="width:160px;">
     </div>`;
   lista.appendChild(row);
 }
@@ -1104,10 +1184,12 @@ async function guardarCliente(){
           const precio = parseFloat(fila.querySelector('[data-field="precio"]')?.value);
           const qty = parseInt(fila.querySelector('[data-field="qty"]')?.value)||1;
           if(!cuenta || isNaN(precio) || precio<=0) continue;
+          const inicio = fila.querySelector('[data-field="inicio"]')?.value||null;
           for(let q=0; q<qty; q++){
             await api('licencias','POST',{
               cliente_id: clienteId, cuenta, tipo, descripcion: desc,
-              precio_actual: precio, moneda: 'ARS', estado: 'activa', proveedor: cuenta
+              precio_actual: precio, moneda: 'ARS', estado: 'activa', proveedor: cuenta,
+              fecha_alta: inicio ? inicio+'-01' : null
             });
           }
         }
@@ -1500,7 +1582,8 @@ async function generarCobranzasMes(){
 
   try{
     // Traer todas las licencias activas
-    const licencias = await api('licencias?estado=eq.activa&select=cliente_id,precio_actual,moneda,cuenta,clientes(id,nombre)');
+    // Solo licencias cuyo inicio de cobranza (fecha_alta) sea <= período actual o no tenga fecha
+    const licencias = await api('licencias?estado=eq.activa&select=cliente_id,precio_actual,moneda,cuenta,fecha_alta,clientes(id,nombre)');
     if(!licencias?.length){ toast('Sin licencias activas'); return; }
 
     // Ver cobranzas existentes
@@ -1511,9 +1594,17 @@ async function generarCobranzasMes(){
 
     let creados = 0;
 
+    // Filtrar licencias cuyo inicio es <= período (o sin fecha = siempre incluir)
+    const periodoDate = new Date(year, month-1, 1);
+    const licsFiltradas = licencias.filter(l=>{
+      if(!l.fecha_alta) return true;
+      const inicio = new Date(l.fecha_alta);
+      return inicio <= periodoDate;
+    });
+
     // ── TOTEM NUBE: una por cliente
     const porClienteTN = {};
-    licencias.filter(l=>l.cuenta==='totem_nube' && l.moneda==='ARS').forEach(l=>{
+    licsFiltradas.filter(l=>l.cuenta==='totem_nube' && l.moneda==='ARS').forEach(l=>{
       const cid = l.cliente_id;
       if(!porClienteTN[cid]) porClienteTN[cid] = { cliente_id: cid, monto: 0 };
       porClienteTN[cid].monto += (l.precio_actual||0);
@@ -1531,7 +1622,7 @@ async function generarCobranzasMes(){
 
     // ── GESTION PLAY: una por cliente
     const porClienteGP = {};
-    licencias.filter(l=>l.cuenta==='gestion_play' && l.moneda==='ARS').forEach(l=>{
+    licsFiltradas.filter(l=>l.cuenta==='gestion_play' && l.moneda==='ARS').forEach(l=>{
       const cid = l.cliente_id;
       if(!porClienteGP[cid]) porClienteGP[cid] = { cliente_id: cid, monto: 0 };
       porClienteGP[cid].monto += (l.precio_actual||0);
@@ -1554,7 +1645,7 @@ async function generarCobranzasMes(){
         .reduce((s,l)=>s+(l.precio_actual||0),0);
       if(totalValidar>0){
         // Usar el primer cliente Validar como referencia (o null)
-        const primerValidar = licencias.find(l=>l.cuenta==='validar');
+        const primerValidar = licsFiltradas.find(l=>l.cuenta==='validar');
         await api('facturas','POST',{
           cliente_id: primerValidar?.cliente_id||null, periodo, cuenta: 'validar',
           monto_total: Math.round(totalValidar*100)/100,
