@@ -921,6 +921,7 @@ async function getClientes(){
 // ── CLIENTES ─────────────────────────────────────────────────
 let _clientesData = [];
 let _licCuentaMap = {};
+let _licCount = {};
 async function loadClientes(){
   const tbody = document.getElementById('clientes-tbody');
   tbody.innerHTML = '<tr><td colspan="7"><div class="loading"><span class="spinner"></span>Cargando...</div></td></tr>';
@@ -950,6 +951,7 @@ async function loadClientes(){
       `<div class="stat-card"><div class="stat-val" style="color:var(--green);">${conVAL}</div><div class="stat-label">Validar</div></div>`;
     
     _licCuentaMap = licCuentaMap;
+    _licCount = licCount;
     renderClientes(_clientesData, licCount);
     _clientes = []; // invalidar cache
   }catch(e){ tbody.innerHTML=`<tr><td colspan="7"><div class="empty">Error: ${e.message}</div></td></tr>`; }
@@ -982,7 +984,7 @@ function filtrarClientes(){
     const matchCuenta = !cuenta || _licCuentaMap[c.id]?.has(cuenta);
     return matchQ && matchEst && matchCuenta;
   });
-  renderClientes(filtered, {});
+  renderClientes(filtered, _licCount);
 }
 
 let _editClienteId = null;
