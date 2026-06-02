@@ -928,8 +928,8 @@ let _clientesData = [];
 let _licCuentaMap = {};
 let _licCount = {};
 
-async function eliminarCliente(id, nombre){
-  if(!confirm('¿Eliminar cliente "'+nombre+'"?\n\nEsto también eliminará todas sus licencias.')) return;
+async function eliminarCliente(id){
+  if(!confirm('¿Eliminar este cliente?\n\nEsto también eliminará todas sus licencias.')) return;
   try{
     await api('licencias?cliente_id=eq.'+id,'DELETE');
     await api('clientes?id=eq.'+id,'DELETE');
@@ -995,7 +995,7 @@ function renderClientes(data, licCount){
       <td><span class="badge ${c.activo?'badge-green':'badge-gray'}">${c.activo?'Activo':'Inactivo'}</span></td>
       <td style="text-align:right;">
         <button class="btn sm" onclick="editarCliente(${c.id})">✏ Editar</button>
-        <button class="btn sm" onclick="eliminarCliente(${c.id},'${c.nombre.replace(/'/g,"\'")}")" style="border-color:var(--red);color:var(--red);">✕</button>
+        <button class="btn sm" onclick="eliminarCliente(${c.id})" style="border-color:var(--red);color:var(--red);">✕</button>
       </td>
     </tr>`).join('');
 }
