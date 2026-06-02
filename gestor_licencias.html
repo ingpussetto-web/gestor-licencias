@@ -927,6 +927,26 @@ async function getClientes(){
 let _clientesData = [];
 let _licCuentaMap = {};
 let _licCount = {};
+
+async function eliminarCliente(id, nombre){
+  if(!confirm('¿Eliminar cliente "'+nombre+'"?\n\nEsto también eliminará todas sus licencias.')) return;
+  try{
+    await api('licencias?cliente_id=eq.'+id,'DELETE');
+    await api('clientes?id=eq.'+id,'DELETE');
+    toast('Cliente eliminado');
+    loadClientes();
+  }catch(e){ toast('Error: '+e.message); }
+}
+
+async function eliminarLicencia(id){
+  if(!confirm('¿Eliminar esta licencia?')) return;
+  try{
+    await api('licencias?id=eq.'+id,'DELETE');
+    toast('Licencia eliminada');
+    loadLicencias();
+  }catch(e){ toast('Error: '+e.message); }
+}
+
 async function loadClientes(){
   const tbody = document.getElementById('clientes-tbody');
   tbody.innerHTML = '<tr><td colspan="7"><div class="loading"><span class="spinner"></span>Cargando...</div></td></tr>';
@@ -975,6 +995,7 @@ function renderClientes(data, licCount){
       <td><span class="badge ${c.activo?'badge-green':'badge-gray'}">${c.activo?'Activo':'Inactivo'}</span></td>
       <td style="text-align:right;">
         <button class="btn sm" onclick="editarCliente(${c.id})">✏ Editar</button>
+        <button class="btn sm" onclick="eliminarCliente(${c.id},'${c.nombre.replace(/'/g,"\'")}")" style="border-color:var(--red);color:var(--red);">✕</button>
       </td>
     </tr>`).join('');
 }
@@ -1017,16 +1038,16 @@ async function editarCliente(id){
 }
 function agregarFilaLicencia(){
   const lista = document.getElementById('cli-licencias-lista');
-  const idx = lista.children.length;
   const tiposOpts = ['turnero','publicidad','ia','autogestion','cuos_atencion','cuos_vigilancia','agro']
     .map(t=>(`<option value="${t}">${{turnero:'Turnero',publicidad:'Publicidad digital',ia:'Agente IA',autogestion:'Autogestión y pagos',cuos_atencion:'CUOS Atención remota',cuos_vigilancia:'CUOS Vigilancia',agro:'Agro'}[t]}</option>`)).join('');
   const row = document.createElement('div');
+  row.dataset.licRow = '1';
   row.style.cssText = 'background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;';
   row.innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;margin-bottom:8px;">
       <div>
         <div class="form-label" style="margin-bottom:4px;">Cartera</div>
-        <select class="form-select lic-cuenta-${idx}">
+        <select class="form-select" data-field="cuenta">
           <option value="totem_nube">Totem Nube</option>
           <option value="gestion_play">Gestion Play</option>
           <option value="validar">Validar</option>
@@ -1034,22 +1055,22 @@ function agregarFilaLicencia(){
       </div>
       <div>
         <div class="form-label" style="margin-bottom:4px;">Tipo</div>
-        <select class="form-select lic-tipo-${idx}">${tiposOpts}</select>
+        <select class="form-select" data-field="tipo">${tiposOpts}</select>
       </div>
-      <button type="button" onclick="this.closest('div[style]').remove()" style="height:34px;padding:0 10px;border:1px solid var(--border2);border-radius:8px;background:var(--surface);color:var(--red);cursor:pointer;font-size:16px;" title="Eliminar">✕</button>
+      <button type="button" onclick="this.closest('[data-lic-row]').remove()" style="height:34px;padding:0 10px;border:1px solid var(--border2);border-radius:8px;background:var(--surface);color:var(--red);cursor:pointer;font-size:16px;" title="Eliminar">✕</button>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr 80px;gap:8px;">
       <div>
         <div class="form-label" style="margin-bottom:4px;">Descripción</div>
-        <input class="form-input lic-desc-${idx}" type="text" placeholder="Ej: turnero.php">
+        <input class="form-input" data-field="desc" type="text" placeholder="Ej: turnero.php">
       </div>
       <div>
         <div class="form-label" style="margin-bottom:4px;">Precio ARS</div>
-        <input class="form-input lic-precio-${idx}" type="number" min="0" step="0.01" placeholder="0,00">
+        <input class="form-input" data-field="precio" type="number" min="0" step="0.01" placeholder="0,00">
       </div>
       <div>
         <div class="form-label" style="margin-bottom:4px;">Cantidad</div>
-        <input class="form-input lic-qty-${idx}" type="number" min="1" value="1" style="text-align:center;">
+        <input class="form-input" data-field="qty" type="number" min="1" value="1" style="text-align:center;">
       </div>
     </div>`;
   lista.appendChild(row);
@@ -1071,17 +1092,17 @@ async function guardarCliente(){
       await api('clientes?id=eq.'+_editClienteId,'PATCH',data);
       toast('Cliente actualizado');
     }else{
-      const nuevo = await api('clientes','POST',data);
-      const clienteId = nuevo?.[0]?.id;
+      const nuevo = await api('clientes?select=id','POST',data);
+      const clienteId = Array.isArray(nuevo) ? nuevo[0]?.id : nuevo?.id;
       if(clienteId){
         // Crear todas las licencias definidas
-        const filas = document.getElementById('cli-licencias-lista').children;
-        for(let i=0; i<filas.length; i++){
-          const cuenta = filas[i].querySelector(`[class*="lic-cuenta-"]`)?.value;
-          const tipo = filas[i].querySelector(`[class*="lic-tipo-"]`)?.value;
-          const desc = filas[i].querySelector(`[class*="lic-desc-"]`)?.value?.trim()||'';
-          const precio = parseFloat(filas[i].querySelector(`[class*="lic-precio-"]`)?.value);
-          const qty = parseInt(filas[i].querySelector(`[class*="lic-qty-"]`)?.value)||1;
+        const filas = document.getElementById('cli-licencias-lista').querySelectorAll('[data-lic-row]');
+        for(const fila of filas){
+          const cuenta = fila.querySelector('[data-field="cuenta"]')?.value;
+          const tipo = fila.querySelector('[data-field="tipo"]')?.value;
+          const desc = fila.querySelector('[data-field="desc"]')?.value?.trim()||'';
+          const precio = parseFloat(fila.querySelector('[data-field="precio"]')?.value);
+          const qty = parseInt(fila.querySelector('[data-field="qty"]')?.value)||1;
           if(!cuenta || isNaN(precio) || precio<=0) continue;
           for(let q=0; q<qty; q++){
             await api('licencias','POST',{
@@ -1167,6 +1188,7 @@ function renderLicencias(data){
       <td><span class="badge ${ESTADO_BADGE[l.estado]||'badge-gray'}">${ESTADO_LABEL[l.estado]||l.estado}</span></td>
       <td style="text-align:right;">
         <button class="btn sm" onclick="editarLicencia(${l.id})">✏</button>
+        <button class="btn sm" onclick="eliminarLicencia(${l.id})" style="border-color:var(--red);color:var(--red);">✕</button>
       </td>
     </tr>`).join('');
 }
