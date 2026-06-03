@@ -478,7 +478,8 @@ tr:hover td { background: var(--bg2); }
               <th>Cuenta</th>
               <th>Tipo</th>
               <th>Descripción</th>
-              <th>Precio</th>
+              <th>Neto</th>
+              <th>c/IVA 21%</th>
               <th>Moneda</th>
               <th>Estado</th>
               <th></th>
@@ -532,7 +533,8 @@ tr:hover td { background: var(--bg2); }
               <th>Cartera</th>
               <th>Período</th>
               <th>N° Factura</th>
-              <th>Monto</th>
+              <th>Neto</th>
+              <th>c/IVA 21%</th>
               <th>Vencimiento</th>
               <th>Estado</th>
               <th>Cobro</th>
@@ -692,16 +694,20 @@ tr:hover td { background: var(--bg2); }
     </div>
     <div class="form-row">
       <div class="form-group">
-        <label class="form-label">Precio actual *</label>
-        <input class="form-input" type="number" id="lic-precio" min="0" step="0.01">
+        <label class="form-label">Precio neto *</label>
+        <input class="form-input" type="number" id="lic-precio" min="0" step="0.01" oninput="actualizarBrutoLic()">
       </div>
       <div class="form-group">
         <label class="form-label">Moneda</label>
-        <select class="form-select" id="lic-moneda">
+        <select class="form-select" id="lic-moneda" onchange="actualizarBrutoLic()">
           <option value="ARS">ARS</option>
           <option value="USD">USD</option>
         </select>
       </div>
+    </div>
+    <div class="form-group" id="lic-bruto-group">
+      <label class="form-label">Total c/IVA 21%</label>
+      <input class="form-input" type="text" id="lic-bruto" readonly style="background:var(--bg2);color:var(--accent);font-family:'DM Mono',monospace;font-weight:600;cursor:default;">
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -753,9 +759,13 @@ tr:hover td { background: var(--bg2); }
         <input class="form-input" type="text" id="cob-factura">
       </div>
       <div class="form-group">
-        <label class="form-label">Monto total *</label>
-        <input class="form-input" type="number" id="cob-monto" min="0" step="0.01">
+        <label class="form-label">Monto neto *</label>
+        <input class="form-input" type="number" id="cob-monto" min="0" step="0.01" oninput="actualizarBrutoCob()">
       </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Total c/IVA 21%</label>
+      <input class="form-input" type="text" id="cob-bruto" readonly style="background:var(--bg2);color:var(--accent);font-family:'DM Mono',monospace;font-weight:600;cursor:default;">
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -1280,6 +1290,7 @@ function renderLicencias(data){
       <td><span class="badge badge-blue">${TIPO_LABELS[l.tipo]||l.tipo}</span></td>
       <td style="max-width:200px;font-size:12px;">${l.descripcion||'—'}</td>
       <td style="font-family:'DM Mono',monospace;font-weight:600;color:var(--accent);">$${fmt(l.precio_actual)}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);">${l.moneda==='ARS' ? '$'+fmt(l.precio_actual*1.21) : '—'}</td>
       <td><span class="badge ${l.moneda==='USD'?'badge-amber':'badge-gray'}">${l.moneda}</span></td>
       <td><span class="badge ${ESTADO_BADGE[l.estado]||'badge-gray'}">${ESTADO_LABEL[l.estado]||l.estado}</span></td>
       <td style="text-align:right;">
@@ -1287,6 +1298,22 @@ function renderLicencias(data){
         <button class="btn sm" onclick="eliminarLicencia(${l.id})" style="border-color:var(--red);color:var(--red);">✕</button>
       </td>
     </tr>`).join('');
+}
+
+// ── HELPERS IVA ──────────────────────────────────────────────
+function actualizarBrutoLic(){
+  const neto = parseFloat(document.getElementById('lic-precio').value);
+  const moneda = document.getElementById('lic-moneda').value;
+  const campo = document.getElementById('lic-bruto');
+  const group = document.getElementById('lic-bruto-group');
+  if(moneda==='USD'){ group.style.display='none'; return; }
+  group.style.display='block';
+  campo.value = !isNaN(neto) && neto > 0 ? '$' + fmt(neto * 1.21) : '';
+}
+function actualizarBrutoCob(){
+  const neto = parseFloat(document.getElementById('cob-monto').value);
+  const campo = document.getElementById('cob-bruto');
+  campo.value = !isNaN(neto) && neto > 0 ? '$' + fmt(neto * 1.21) : '';
 }
 
 let _editLicenciaId = null;
@@ -1300,6 +1327,7 @@ function abrirModalLicencia(){
   document.getElementById('lic-estado').value='activa';
   document.getElementById('lic-moneda').value='ARS';
   document.getElementById('lic-fecha-alta').value=new Date().toISOString().split('T')[0];
+  actualizarBrutoLic();
   abrirModal('modal-licencia');
 }
 async function editarLicencia(id){
@@ -1317,6 +1345,7 @@ async function editarLicencia(id){
   document.getElementById('lic-fecha-alta').value = l.fecha_alta||'';
   document.getElementById('lic-params').value = l.parametros?.descripcion||'';
   document.getElementById('lic-notas').value = l.notas||'';
+  actualizarBrutoLic();
   abrirModal('modal-licencia');
 }
 async function guardarLicencia(){
@@ -1406,8 +1435,10 @@ function actualizarStatsCobranzas(data){
   const totalCobrado = cobradas.reduce((s,f)=>s+(f.monto_total||0),0);
   const totalPendiente = pendientes.reduce((s,f)=>s+(f.monto_total||0),0);
   document.getElementById('cobranzas-stats').innerHTML =
-    `<div class="stat-card"><div class="stat-val" style="color:var(--green);">$${fmt(totalCobrado)}</div><div class="stat-label">Cobrado (${cobradas.length})</div></div>`+
-    `<div class="stat-card"><div class="stat-val" style="color:var(--amber);">$${fmt(totalPendiente)}</div><div class="stat-label">Pendiente (${pendientes.length})</div></div>`+
+    `<div class="stat-card"><div class="stat-val" style="color:var(--green);">$${fmt(totalCobrado)}</div><div class="stat-label">Cobrado neto (${cobradas.length})</div></div>`+
+    `<div class="stat-card"><div class="stat-val" style="color:var(--green);font-size:16px;">$${fmt(totalCobrado*1.21)}</div><div class="stat-label">Cobrado c/IVA</div></div>`+
+    `<div class="stat-card"><div class="stat-val" style="color:var(--amber);">$${fmt(totalPendiente)}</div><div class="stat-label">Pendiente neto (${pendientes.length})</div></div>`+
+    `<div class="stat-card"><div class="stat-val" style="color:var(--amber);font-size:16px;">$${fmt(totalPendiente*1.21)}</div><div class="stat-label">Pendiente c/IVA</div></div>`+
     `<div class="stat-card"><div class="stat-val" style="color:var(--red);">${vencidas.length}</div><div class="stat-label">Vencidas</div></div>`;
 }
 
@@ -1423,6 +1454,7 @@ function renderCobranzas(data){
       <td style="font-family:'DM Mono',monospace;font-size:12px;">${f.periodo||'—'}</td>
       <td style="font-size:12px;">${f.numero_factura_externa||'—'}</td>
       <td style="font-family:'DM Mono',monospace;font-weight:600;color:var(--accent);">$${fmt(f.monto_total)}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);">$${fmt(f.monto_total*1.21)}</td>
       <td style="font-size:12px;">${fmtFecha(f.fecha_vencimiento)}</td>
       <td><span class="badge ${ESTADO_BADGE[f.estado]||'badge-gray'}">${ESTADO_LABEL[f.estado]||f.estado}</span></td>
       <td style="font-size:12px;">${fmtFecha(f.fecha_cobro)}</td>
@@ -1447,6 +1479,7 @@ function abrirModalCobranza(){
   document.getElementById('cob-periodo').value=document.getElementById('filtro-periodo').value;
   document.getElementById('cob-vencimiento').value='';
   document.getElementById('cob-cobro').value='';
+  actualizarBrutoCob();
   abrirModal('modal-cobranza');
 }
 async function editarCobranza(id){
@@ -1464,6 +1497,7 @@ async function editarCobranza(id){
   document.getElementById('cob-vencimiento').value = f.fecha_vencimiento||'';
   document.getElementById('cob-cobro').value = f.fecha_cobro||'';
   document.getElementById('cob-notas').value = f.notas||'';
+  actualizarBrutoCob();
   abrirModal('modal-cobranza');
 }
 async function guardarCobranza(){
