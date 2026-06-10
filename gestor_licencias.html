@@ -1609,11 +1609,17 @@ function actualizarStatsCobranzas(data){
     `<div class="stat-card"><div class="stat-val" style="color:var(--red);">${vencidas.length}</div><div class="stat-label">Vencidas</div></div>`;
 }
 
+function estadoSelectColor(estado){
+  const map = {borrador:'var(--text3)', enviada:'var(--blue)', cobrada:'var(--green)', vencida:'var(--red)', incobrable:'var(--red)'};
+  return map[estado]||'var(--text3)';
+}
+
 function renderCobranzas(data){
   const tbody = document.getElementById('cobranzas-tbody');
   if(!data.length){ tbody.innerHTML='<tr><td colspan="9"><div class="empty"><div class="empty-icon">💰</div>Sin cobranzas para este período</div></td></tr>'; return; }
   const COB_CUENTA_LABELS = {totem_nube:'Totem Nube', gestion_play:'Gestion Play', validar:'Validar GP', carlos_pussetto:'Carlos Pussetto'};
   const COB_CUENTA_BADGE = {totem_nube:'badge-amber', gestion_play:'badge-blue', validar:'badge-green', carlos_pussetto:'badge-purple'};
+  const ESTADOS = ['borrador','enviada','cobrada','vencida','incobrable'];
   tbody.innerHTML = data.map(f=>`
     <tr>
       <td><strong>${f.cuenta==='validar'?'VALIDAR (total consolidado)':f.clientes?.nombre||'—'}</strong></td>
@@ -1623,14 +1629,16 @@ function renderCobranzas(data){
       <td style="font-family:'DM Mono',monospace;font-weight:600;color:var(--accent);">$${fmt(f.monto_total)}</td>
       <td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);">$${fmt(f.monto_total*1.21)}</td>
       <td style="font-size:12px;">${fmtFecha(f.fecha_vencimiento)}</td>
-      <td><span class="badge ${ESTADO_BADGE[f.estado]||'badge-gray'}">${ESTADO_LABEL[f.estado]||f.estado}</span></td>
+      <td>
+        <select
+          onchange="cambiarEstadoCobranza(${f.id}, this.value, this)"
+          style="padding:3px 8px;border-radius:6px;border:1px solid var(--border2);background:var(--surface);font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;color:${estadoSelectColor(f.estado)};min-width:100px;">
+          ${ESTADOS.map(e=>`<option value="${e}" ${e===f.estado?'selected':''} style="color:${estadoSelectColor(e)};">${ESTADO_LABEL[e]}</option>`).join('')}
+        </select>
+      </td>
       <td style="font-size:12px;">${fmtFecha(f.fecha_cobro)}</td>
       <td style="text-align:right;">
         <button class="btn sm" onclick="editarCobranza(${f.id})">✏</button>
-        ${f.estado==='cobrada'
-          ? `<button class="btn sm" style="border-color:var(--green);color:var(--green);" onclick="cambiarEstadoCobranza(${f.id},'enviada')" title="Desmarcar cobrada">✓</button>`
-          : `<button class="btn sm" style="border-color:var(--border2);color:var(--text3);" onclick="cambiarEstadoCobranza(${f.id},'cobrada')" title="Marcar cobrada">✓</button>`
-        }
       </td>
     </tr>`).join('');
 }
@@ -1695,14 +1703,31 @@ async function guardarCobranza(){
     loadCobranzas();
   }catch(e){ toast('Error: '+e.message); }
 }
-async function cambiarEstadoCobranza(id, estado){
+async function cambiarEstadoCobranza(id, estado, selectEl){
   try{
     const data = {estado};
     if(estado==='cobrada') data.fecha_cobro = new Date().toISOString().split('T')[0];
+    if(estado!=='cobrada') data.fecha_cobro = null;
     await api('facturas?id=eq.'+id,'PATCH',data);
+    // Actualizar color del select inline sin recargar toda la tabla
+    if(selectEl) selectEl.style.color = estadoSelectColor(estado);
+    // Actualizar el registro en cache local
+    const reg = _cobranzasData.find(f=>f.id===id);
+    if(reg){ reg.estado = estado; if(estado==='cobrada') reg.fecha_cobro = data.fecha_cobro; else reg.fecha_cobro = null; }
+    // Refrescar stats sin re-renderizar la tabla
+    actualizarStatsCobranzas(_cobranzasData.filter(f=>{
+      const q = document.getElementById('search-cobranzas').value.toLowerCase();
+      const est = document.getElementById('filtro-estado-cob').value;
+      const cuenta = document.getElementById('filtro-cuenta-cob').value;
+      const nombre = f.clientes?.nombre||'';
+      return (!q || nombre.toLowerCase().includes(q)) && (!est || f.estado===est) && (!cuenta || f.cuenta===cuenta);
+    }));
     toast('Estado actualizado');
-    loadCobranzas();
-  }catch(e){ toast('Error: '+e.message); }
+  }catch(e){
+    // Revertir el select al valor anterior si falla
+    if(selectEl){ const reg = _cobranzasData.find(f=>f.id===id); if(reg) selectEl.value = reg.estado; }
+    toast('Error: '+e.message);
+  }
 }
 
 // ── PRECIOS ──────────────────────────────────────────────────
