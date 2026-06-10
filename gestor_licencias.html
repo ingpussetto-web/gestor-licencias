@@ -1915,6 +1915,7 @@ async function guardarPrecio(){
 // ── SINCRONIZAR COBRANZAS (automático al cargar) ────────────
 // Reemplaza "Generar cobranzas del mes". Corre silenciosamente al abrir
 // la pestaña de cobranzas. Para cada licencia activa en ARS:
+//   - Vence automáticamente facturas en 'enviada' con fecha_vencimiento < hoy
 //   - Calcula el monto correcto del período aplicando índices reales o implícitos
 //   - Si no existe cobranza → crea en borrador
 //   - Si existe en borrador y el monto difiere → actualiza
@@ -1928,6 +1929,18 @@ async function sincronizarCobranzas(periodo){
     const fechaEmision     = `${year}-${String(month).padStart(2,'0')}-01`;
     const ultimoDia        = new Date(year, month, 0).getDate();
     const fechaVencimiento = `${year}-${String(month).padStart(2,'0')}-${ultimoDia}`;
+
+    // 0. Vencimiento automático: facturas en 'enviada' con fecha_vencimiento < hoy → 'vencida'
+    //    Se aplica sobre TODOS los períodos, no solo el que se está viendo
+    const hoyStr = new Date().toISOString().split('T')[0];
+    const enviadas = await api(
+      `facturas?estado=eq.enviada&fecha_vencimiento=lt.${hoyStr}&select=id`
+    ).catch(()=>[]);
+    if(enviadas?.length){
+      await Promise.all(enviadas.map(f =>
+        api('facturas?id=eq.'+f.id, 'PATCH', { estado: 'vencida' })
+      ));
+    }
 
     // 1. Índices registrados en actualizaciones_precio
     const ajustes = await api('actualizaciones_precio?order=periodo.asc').catch(()=>[]);
