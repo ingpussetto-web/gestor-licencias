@@ -1447,8 +1447,7 @@ async function confirmarBajaLicencia(){
       const fechaBaja = new Date().toLocaleDateString('es-AR');
       const notaBaja = `[BAJA ${fechaBaja}] Licencia dada de baja con deuda pendiente. ${totalDeuda}`;
       const nuevasNotas = notasActuales
-        ? notasActuales + '
-' + notaBaja
+        ? notasActuales + '\n' + notaBaja
         : notaBaja;
       await api('clientes?id=eq.'+clienteId, 'PATCH', { notas: nuevasNotas });
     }
