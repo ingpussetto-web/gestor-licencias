@@ -502,7 +502,7 @@ tr:hover td { background: var(--bg2); }
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
           <select class="form-select" style="width:160px;" id="filtro-periodo" onchange="loadCobranzas()">
           </select>
-          <button class="btn" onclick="generarCobranzasMes()" style="border-color:var(--green);color:var(--green);">⚡ Generar cobranzas del mes</button>
+          <span id="sync-indicator" style="display:none;font-size:12px;color:var(--text3);"><span class="spinner" style="width:14px;height:14px;border-width:2px;"></span> Sincronizando...</span>
           <button class="btn primary" onclick="abrirModalCobranza()">+ Nueva cobranza</button>
         </div>
       </div>
@@ -1535,9 +1535,12 @@ async function loadCobranzas(){
   const periodo = document.getElementById('filtro-periodo').value;
   tbody.innerHTML = '<tr><td colspan="9"><div class="loading"><span class="spinner"></span>Cargando...</div></td></tr>';
   try{
+    // Auto-sincronizar cobranzas antes de mostrar
+    await sincronizarCobranzas(periodo);
+
     const data = await api(`facturas?periodo=eq.${periodo}&select=id,cliente_id,periodo,numero_factura_externa,monto_total,estado,fecha_vencimiento,fecha_cobro,canal_envio,notas,cuenta,clientes(nombre)&order=cuenta.asc,clientes(nombre).asc`);
     _cobranzasData = data||[];
-    
+
     actualizarStatsCobranzas(_cobranzasData);
 
     // Poblar selector clientes modal
@@ -1750,57 +1753,143 @@ async function guardarPrecio(){
   }
 }
 
-// ── INIT ─────────────────────────────────────────────────────
-
-// ── GENERAR COBRANZAS DEL MES ────────────────────────────────
-async function generarCobranzasMes(){
-  const periodo = document.getElementById('filtro-periodo').value;
-  if(!periodo){ toast('Seleccioná un período primero'); return; }
-
-  const [year, month] = periodo.split('-').map(Number);
-  const fechaEmision = `${year}-${String(month).padStart(2,'0')}-01`;
-  const ultimoDia = new Date(year, month, 0).getDate();
-  const fechaVencimiento = `${year}-${String(month).padStart(2,'0')}-${ultimoDia}`;
-  const periodoDate = new Date(year, month-1, 1);
-
-  if(!confirm(`¿Generar/actualizar cobranzas para ${periodo}?\n\nSe crearán o actualizarán los montos para todas las carteras, incluyendo licencias cuyo inicio sea en este período o anterior.`)) return;
-
+// ── SINCRONIZAR COBRANZAS (automático al cargar) ────────────
+// Reemplaza "Generar cobranzas del mes". Corre silenciosamente al abrir
+// la pestaña de cobranzas. Para cada licencia activa en ARS:
+//   - Calcula el monto correcto del período aplicando índices reales o implícitos
+//   - Si no existe cobranza → crea en borrador
+//   - Si existe en borrador y el monto difiere → actualiza
+//   - Si existe en enviada/cobrada/vencida/incobrable → no toca
+async function sincronizarCobranzas(periodo){
+  const syncEl = document.getElementById('sync-indicator');
+  if(syncEl) syncEl.style.display = 'inline-flex';
   try{
-    // Traer TODAS las licencias activas con fecha_alta
-    const licencias = await api('licencias?estado=eq.activa&select=cliente_id,precio_actual,moneda,cuenta,fecha_alta,clientes(id,nombre)');
-    if(!licencias?.length){ toast('Sin licencias activas'); return; }
+    const [year, month] = periodo.split('-').map(Number);
+    const periodoDate = new Date(year, month-1, 1);
+    const fechaEmision     = `${year}-${String(month).padStart(2,'0')}-01`;
+    const ultimoDia        = new Date(year, month, 0).getDate();
+    const fechaVencimiento = `${year}-${String(month).padStart(2,'0')}-${ultimoDia}`;
 
-    // Filtrar licencias activas para este período (fecha_alta <= primer día del mes o sin fecha)
-    const licsDelPeriodo = licencias.filter(l=>{
+    // 1. Índices registrados en actualizaciones_precio
+    const ajustes = await api('actualizaciones_precio?order=periodo.asc').catch(()=>[]);
+    const ajusteMap = {};
+    (ajustes||[]).forEach(a => { ajusteMap[a.periodo] = a.indice_inflacion; });
+
+    // 2. Cobranzas existentes de TODAS las cuentas para inferir índices implícitos
+    const todasFacturas = await api(
+      'facturas?select=periodo,monto_total,cuenta&order=periodo.asc'
+    ).catch(()=>[]);
+    // montosPorPeriodoCuenta: {cuenta: {periodo: total}}
+    const montosPPC = {};
+    (todasFacturas||[]).forEach(f => {
+      if(!montosPPC[f.cuenta]) montosPPC[f.cuenta] = {};
+      if(!montosPPC[f.cuenta][f.periodo]) montosPPC[f.cuenta][f.periodo] = 0;
+      montosPPC[f.cuenta][f.periodo] += (f.monto_total||0);
+    });
+
+    // Factor para un periodo+cuenta dado
+    function getFactor(periodoStr, cuenta){
+      // Primero: índice registrado (aplica igual a todas las cuentas)
+      if(ajusteMap[periodoStr] !== undefined){
+        return 1 + ajusteMap[periodoStr] / 100;
+      }
+      // Segundo: índice implícito desde cobranzas de esa cuenta
+      const [y, m] = periodoStr.split('-').map(Number);
+      const dPrev = new Date(y, m-2, 1);
+      const periodoAnterior = `${dPrev.getFullYear()}-${String(dPrev.getMonth()+1).padStart(2,'0')}`;
+      const montoPrev = montosPPC[cuenta]?.[periodoAnterior];
+      const montoAct  = montosPPC[cuenta]?.[periodoStr];
+      if(montoPrev && montoAct && montoPrev > 0) return montoAct / montoPrev;
+      return 1;
+    }
+
+    // 3. Calcular precio correcto para este período partiendo del precio_base de la licencia
+    //    precio_actual ya tiene los ajustes acumulados hasta hoy.
+    //    Para un período pasado, hay que "deshacer" los factores desde hoy hasta ese período.
+    //    Construimos la cadena de factores desde fecha_alta hasta hoy y dividimos.
+    function calcularPrecioParaPeriodo(precioActual, fechaAltaStr, periodoTarget, cuenta){
+      const hoy = new Date();
+      const mesHoy = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+      // periodoTarget como Date
+      const [ty, tm] = periodoTarget.split('-').map(Number);
+      const mesTarget = new Date(ty, tm-1, 1);
+
+      // precio_actual ya tiene el ajuste acumulado hasta el mes actual inclusive.
+      // Necesitamos el precio tal como debía ser en mesTarget.
+      // Calculamos el factor acumulado desde mesTarget+1 hasta mesHoy inclusive,
+      // y dividimos precio_actual por ese factor.
+      let factorAcum = 1;
+      let cursor = new Date(ty, tm, 1); // mes siguiente al target
+      while(cursor <= mesHoy){
+        const ps = `${cursor.getFullYear()}-${String(cursor.getMonth()+1).padStart(2,'0')}`;
+        factorAcum *= getFactor(ps, cuenta);
+        cursor.setMonth(cursor.getMonth() + 1);
+      }
+      return Math.round((precioActual / factorAcum) * 100) / 100;
+    }
+
+    // 4. Licencias activas en ARS activas en este período
+    const licencias = await api(
+      'licencias?estado=eq.activa&moneda=eq.ARS&select=id,cliente_id,precio_actual,cuenta,fecha_alta'
+    ).catch(()=>[]);
+    if(!licencias?.length){ if(syncEl) syncEl.style.display='none'; return; }
+
+    const licsDelPeriodo = licencias.filter(l => {
       if(!l.fecha_alta) return true;
-      return new Date(l.fecha_alta) <= periodoDate;
+      return new Date(l.fecha_alta+'T12:00:00') <= periodoDate;
     });
 
-    // Traer cobranzas existentes del período
-    const existentes = await api(`facturas?periodo=eq.${periodo}&select=id,cliente_id,cuenta,monto_total`).catch(()=>[]);
-    // Mapas: cuenta+clienteId → factura existente
+    // 5. Cobranzas existentes del período con sus estados
+    const existentes = await api(
+      `facturas?periodo=eq.${periodo}&select=id,cliente_id,cuenta,monto_total,estado`
+    ).catch(()=>[]);
+    // mapa: cuenta|clienteId → factura
     const existMap = {};
-    (existentes||[]).forEach(f=>{
-      const key = f.cuenta+'|'+(f.cliente_id||'validar');
-      existMap[key] = f;
+    (existentes||[]).forEach(f => {
+      existMap[f.cuenta+'|'+(f.cliente_id??'null')] = f;
     });
 
-    let creados = 0;
-    let actualizados = 0;
+    // 6. Agrupar licencias por cliente+cuenta y calcular monto correcto
+    const grupos = {}; // key: cuenta|clienteId → {cliente_id, cuenta, monto}
+    licsDelPeriodo.forEach(l => {
+      const key = l.cuenta+'|'+l.cliente_id;
+      if(!grupos[key]) grupos[key] = { cliente_id: l.cliente_id, cuenta: l.cuenta, monto: 0 };
+      grupos[key].monto += calcularPrecioParaPeriodo(
+        parseFloat(l.precio_actual), l.fecha_alta, periodo, l.cuenta
+      );
+    });
 
-    // Helper: crear o actualizar factura
-    const upsertFactura = async (cliente_id, cuenta, monto) => {
-      if(monto <= 0) return;
-      const key = cuenta+'|'+(cliente_id||'validar');
-      const montoRound = Math.round(monto * 100) / 100;
-      if(existMap[key]){
-        if(Math.abs(existMap[key].monto_total - montoRound) > 0.01){
-          await api('facturas?id=eq.'+existMap[key].id,'PATCH',{ monto_total: montoRound });
+    // Caso especial VALIDAR: consolidado en una sola fila (cliente_id null o primer cliente)
+    // Reagrupar validar en una sola entrada
+    const validarKeys = Object.keys(grupos).filter(k => k.startsWith('validar|'));
+    if(validarKeys.length > 1){
+      const totalVal = validarKeys.reduce((s,k) => s + grupos[k].monto, 0);
+      const firstClienteId = grupos[validarKeys[0]].cliente_id;
+      validarKeys.forEach(k => delete grupos[k]);
+      grupos['validar|'+firstClienteId] = { cliente_id: firstClienteId, cuenta: 'validar', monto: totalVal };
+    }
+
+    // 7. Upsert respetando estados
+    const ESTADOS_BLOQUEADOS = new Set(['enviada','cobrada','vencida','incobrable']);
+    let creados = 0, actualizados = 0;
+
+    for(const [key, g] of Object.entries(grupos)){
+      if(g.monto <= 0) continue;
+      const montoRound = Math.round(g.monto * 100) / 100;
+      const existente = existMap[key];
+
+      if(existente){
+        // Solo tocar si está en borrador y el monto cambió
+        if(!ESTADOS_BLOQUEADOS.has(existente.estado) &&
+           Math.abs(parseFloat(existente.monto_total) - montoRound) > 0.01){
+          await api('facturas?id=eq.'+existente.id, 'PATCH', { monto_total: montoRound });
           actualizados++;
         }
       } else {
-        await api('facturas','POST',{
-          cliente_id, periodo, cuenta,
+        await api('facturas', 'POST', {
+          cliente_id: g.cliente_id,
+          periodo,
+          cuenta: g.cuenta,
           monto_total: montoRound,
           estado: 'borrador',
           fecha_emision: fechaEmision,
@@ -1809,55 +1898,18 @@ async function generarCobranzasMes(){
         });
         creados++;
       }
-    };
-
-    // ── TOTEM NUBE: una por cliente
-    const porClienteTN = {};
-    licsDelPeriodo.filter(l=>l.cuenta==='totem_nube' && l.moneda==='ARS').forEach(l=>{
-      if(!porClienteTN[l.cliente_id]) porClienteTN[l.cliente_id] = 0;
-      porClienteTN[l.cliente_id] += (l.precio_actual||0);
-    });
-    for(const [cid, monto] of Object.entries(porClienteTN)){
-      await upsertFactura(parseInt(cid), 'totem_nube', monto);
     }
 
-    // ── GESTION PLAY: una por cliente
-    const porClienteGP = {};
-    licsDelPeriodo.filter(l=>l.cuenta==='gestion_play' && l.moneda==='ARS').forEach(l=>{
-      if(!porClienteGP[l.cliente_id]) porClienteGP[l.cliente_id] = 0;
-      porClienteGP[l.cliente_id] += (l.precio_actual||0);
-    });
-    for(const [cid, monto] of Object.entries(porClienteGP)){
-      await upsertFactura(parseInt(cid), 'gestion_play', monto);
+    if(creados || actualizados){
+      const msg = [];
+      if(creados)     msg.push(`${creados} nueva${creados!==1?'s':''}`);
+      if(actualizados) msg.push(`${actualizados} actualizada${actualizados!==1?'s':''}`);
+      toast(`✅ ${msg.join(' · ')}`);
     }
-
-    // ── CARLOS PUSSETTO: una por cliente
-    const porClienteCP = {};
-    licsDelPeriodo.filter(l=>l.cuenta==='carlos_pussetto' && l.moneda==='ARS').forEach(l=>{
-      if(!porClienteCP[l.cliente_id]) porClienteCP[l.cliente_id] = 0;
-      porClienteCP[l.cliente_id] += (l.precio_actual||0);
-    });
-    for(const [cid, monto] of Object.entries(porClienteCP)){
-      await upsertFactura(parseInt(cid), 'carlos_pussetto', monto);
-    }
-
-    // ── VALIDAR: una sola fila consolidada
-    const totalValidar = licsDelPeriodo
-      .filter(l=>l.cuenta==='validar' && l.moneda==='ARS')
-      .reduce((s,l)=>s+(l.precio_actual||0), 0);
-    if(totalValidar > 0){
-      const primerValidar = licsDelPeriodo.find(l=>l.cuenta==='validar');
-      await upsertFactura(primerValidar?.cliente_id||null, 'validar', totalValidar);
-    }
-
-    const msg = [];
-    if(creados) msg.push(`${creados} nuevas`);
-    if(actualizados) msg.push(`${actualizados} actualizadas`);
-    toast(msg.length ? `✅ Cobranzas: ${msg.join(', ')}` : 'Sin cambios para este período');
-    loadCobranzas();
   }catch(e){
-    toast('Error: ' + e.message);
-    console.error(e);
+    console.warn('sincronizarCobranzas error:', e);
+  }finally{
+    if(syncEl) syncEl.style.display = 'none';
   }
 }
 async function init(){
