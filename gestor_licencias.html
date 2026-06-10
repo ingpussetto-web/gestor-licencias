@@ -1197,6 +1197,7 @@ async function guardarCliente(){
       if(clienteId){
         // Crear todas las licencias definidas
         const filas = document.getElementById('cli-licencias-lista').querySelectorAll('[data-lic-row]');
+        let retroMsgs = [];
         for(const fila of filas){
           const cuenta = fila.querySelector('[data-field="cuenta"]')?.value;
           const tipo = fila.querySelector('[data-field="tipo"]')?.value;
@@ -1211,10 +1212,27 @@ async function guardarCliente(){
               precio_actual: precio, moneda: 'ARS', estado: 'activa', proveedor: cuenta,
               fecha_alta: inicio ? inicio+'-01' : null
             });
+            // Generación retroactiva si el inicio es anterior al mes actual
+            if(inicio){
+              const hoy = new Date();
+              const mesActual = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+              const mesAlta   = new Date(inicio + '-01T12:00:00');
+              const mesAltaNorm = new Date(mesAlta.getFullYear(), mesAlta.getMonth(), 1);
+              if(mesAltaNorm < mesActual){
+                const r = await generarCobranzasRetroactivas(clienteId, cuenta, precio, mesAltaNorm, mesActual);
+                retroMsgs.push(r);
+              }
+            }
           }
         }
+        if(retroMsgs.length){
+          toast('Cliente creado · ' + retroMsgs.join(' | '));
+        } else {
+          toast('Cliente creado');
+        }
+      } else {
+        toast('Cliente creado');
       }
-      toast('Cliente creado');
     }
     cerrarModal('modal-cliente');
     loadClientes();
@@ -1372,11 +1390,129 @@ async function guardarLicencia(){
       toast('Licencia actualizada');
     }else{
       await api('licencias','POST',data);
-      toast('Licencia creada');
+      // Generación retroactiva si fecha_alta es anterior al mes actual
+      if(data.fecha_alta && data.moneda === 'ARS'){
+        const altaDate = new Date(data.fecha_alta + 'T12:00:00');
+        const hoy = new Date();
+        const mesActual = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+        const mesAlta   = new Date(altaDate.getFullYear(), altaDate.getMonth(), 1);
+        if(mesAlta < mesActual){
+          toast('⏳ Generando cobranzas retroactivas...');
+          const resultado = await generarCobranzasRetroactivas(
+            data.cliente_id, data.cuenta, data.precio_actual, mesAlta, mesActual
+          );
+          toast(`✅ Licencia creada · ${resultado}`);
+        } else {
+          toast('Licencia creada');
+        }
+      } else {
+        toast('Licencia creada');
+      }
     }
     cerrarModal('modal-licencia');
     loadLicencias();
   }catch(e){ toast('Error: '+e.message); }
+}
+
+// ── GENERACIÓN RETROACTIVA DE COBRANZAS ──────────────────────
+// Genera cobranzas mes a mes desde mesAlta hasta mesActual (exclusive),
+// aplicando los índices de inflación reales o implícitos a cada período.
+async function generarCobranzasRetroactivas(cliente_id, cuenta, precioBase, mesAlta, mesActual){
+  // 1. Traer todos los registros de actualizaciones_precio ordenados
+  const ajustes = await api('actualizaciones_precio?order=periodo.asc').catch(()=>[]);
+  // Construir mapa periodo → indice  (ej: "2025-04" → 8.5)
+  const ajusteMap = {};
+  (ajustes||[]).forEach(a => { ajusteMap[a.periodo] = a.indice_inflacion; });
+
+  // 2. Traer cobranzas existentes para calcular índices implícitos
+  //    Traemos todas las facturas de la cuenta para poder comparar meses consecutivos
+  const todasFacturas = await api(
+    `facturas?cuenta=eq.${cuenta}&select=periodo,monto_total,cliente_id&order=periodo.asc`
+  ).catch(()=>[]);
+
+  // Agrupar montos totales por periodo (suma de todos los clientes de esa cuenta)
+  // para detectar variaciones proporcionales entre meses
+  const montosPorPeriodo = {};
+  (todasFacturas||[]).forEach(f => {
+    if(!montosPorPeriodo[f.periodo]) montosPorPeriodo[f.periodo] = 0;
+    montosPorPeriodo[f.periodo] += (f.monto_total||0);
+  });
+
+  // Función para obtener el factor de un período dado
+  // Primero busca en actualizaciones_precio; si no hay, infiere desde cobranzas
+  function getFactor(periodoStr){
+    if(ajusteMap[periodoStr] !== undefined){
+      return 1 + ajusteMap[periodoStr] / 100;
+    }
+    // Calcular período anterior
+    const [y, m] = periodoStr.split('-').map(Number);
+    const dPrev = new Date(y, m-2, 1); // mes anterior
+    const periodoAnterior = `${dPrev.getFullYear()}-${String(dPrev.getMonth()+1).padStart(2,'0')}`;
+    const montoPrev = montosPorPeriodo[periodoAnterior];
+    const montoAct  = montosPorPeriodo[periodoStr];
+    if(montoPrev && montoAct && montoPrev > 0){
+      return montoAct / montoPrev; // índice implícito
+    }
+    return 1; // sin datos: sin ajuste
+  }
+
+  // 3. Traer cobranzas existentes de este cliente+cuenta para saber cuáles saltear
+  const existentes = await api(
+    `facturas?cliente_id=eq.${cliente_id}&cuenta=eq.${cuenta}&select=periodo`
+  ).catch(()=>[]);
+  const periodosExistentes = new Set((existentes||[]).map(f => f.periodo));
+
+  // 4. Iterar mes a mes desde mesAlta hasta el mes anterior al actual (inclusive)
+  //    El mes actual se deja para "Generar cobranzas del mes" normal
+  let precioAcumulado = precioBase;
+  let creados = 0;
+  let salteados = 0;
+
+  // Construir lista de meses a procesar
+  const meses = [];
+  let cursor = new Date(mesAlta);
+  while(cursor < mesActual){
+    meses.push(new Date(cursor));
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+
+  for(let i = 0; i < meses.length; i++){
+    const d = meses[i];
+    const periodoStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+
+    // El primer mes (mes del alta) usa el precio base directamente
+    // Los siguientes aplican el factor del mes corriente
+    if(i > 0){
+      precioAcumulado = Math.round(precioAcumulado * getFactor(periodoStr) * 100) / 100;
+    }
+
+    // Saltear si ya existe cobranza para este periodo
+    if(periodosExistentes.has(periodoStr)){
+      salteados++;
+      continue;
+    }
+
+    const ultimoDia = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
+    const fechaEmision    = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
+    const fechaVencimiento= `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${ultimoDia}`;
+
+    await api('facturas','POST',{
+      cliente_id,
+      periodo: periodoStr,
+      cuenta,
+      monto_total: precioAcumulado,
+      estado: 'cobrada',       // períodos pasados se marcan cobradas por defecto
+      fecha_emision: fechaEmision,
+      fecha_vencimiento: fechaVencimiento,
+      canal_envio: 'email',
+      notas: 'Generado retroactivamente'
+    });
+    creados++;
+  }
+
+  let msg = `${creados} cobranza${creados!==1?'s':''} retroactiva${creados!==1?'s':''} creada${creados!==1?'s':''}`;
+  if(salteados) msg += ` · ${salteados} ya existían`;
+  return msg;
 }
 
 // ── COBRANZAS ────────────────────────────────────────────────
