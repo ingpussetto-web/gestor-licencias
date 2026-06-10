@@ -810,16 +810,16 @@ tr:hover td { background: var(--bg2); }
 
 <!-- MODAL PRECIO -->
 <div class="modal-overlay" id="modal-precio">
-  <div class="modal">
+  <div class="modal" style="width:600px;">
     <div class="modal-title">Aplicar ajuste por inflación</div>
     <div class="form-row">
       <div class="form-group">
         <label class="form-label">Período *</label>
-        <input class="form-input" type="month" id="prec-periodo">
+        <input class="form-input" type="month" id="prec-periodo" oninput="onPrecPeriodoChange()">
       </div>
       <div class="form-group">
         <label class="form-label">Índice inflación % *</label>
-        <input class="form-input" type="number" id="prec-indice" min="0" step="0.01" placeholder="Ej: 8.5">
+        <input class="form-input" type="number" id="prec-indice" min="0" step="0.01" placeholder="Ej: 3.38">
       </div>
     </div>
     <div class="form-row">
@@ -828,20 +828,48 @@ tr:hover td { background: var(--bg2); }
         <input class="form-input" type="text" id="prec-usuario">
       </div>
       <div class="form-group">
-        <label class="form-label">Fecha aplicación</label>
-        <input class="form-input" type="date" id="prec-fecha">
+        <label class="form-label">Notas</label>
+        <input class="form-input" type="text" id="prec-notas" placeholder="Opcional">
       </div>
     </div>
-    <div class="form-group">
-      <label class="form-label">Notas</label>
-      <textarea class="form-input" id="prec-notas" rows="2" style="resize:vertical;"></textarea>
+
+    <!-- APLICAR A -->
+    <div class="form-group" style="margin-top:4px;">
+      <label class="form-label">Aplicar actualización a</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;padding:7px 14px;border:1px solid var(--border2);border-radius:8px;background:var(--surface);">
+          <input type="radio" name="prec-scope" value="todos" checked onchange="onPrecScopeChange()"> Todos los proyectos
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;padding:7px 14px;border:1px solid var(--border2);border-radius:8px;background:var(--surface);">
+          <input type="radio" name="prec-scope" value="nuevos" onchange="onPrecScopeChange()"> Proyectos nuevos del período
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;padding:7px 14px;border:1px solid var(--border2);border-radius:8px;background:var(--surface);">
+          <input type="radio" name="prec-scope" value="seleccion" onchange="onPrecScopeChange()"> Seleccionar proyectos
+        </label>
+      </div>
     </div>
-    <div style="background:rgba(184,125,46,0.1);border:1px solid rgba(184,125,46,0.3);border-radius:8px;padding:12px;margin-bottom:4px;font-size:12px;color:var(--text2);">
-      ⚠ Este ajuste actualizará el precio de <strong>todas las licencias activas en ARS</strong> multiplicando por el índice ingresado.
+
+    <!-- PANEL SELECCIÓN -->
+    <div id="prec-seleccion-panel" style="display:none;margin-top:2px;">
+      <div style="margin-bottom:6px;">
+        <input class="search-input" type="text" id="prec-search" placeholder="🔍 Buscar cliente..." oninput="filtrarPrecLicencias()" style="width:100%;">
+      </div>
+      <div id="prec-licencias-lista" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;background:var(--bg);">
+        <div style="padding:20px;text-align:center;color:var(--text3);font-size:13px;">Cargando...</div>
+      </div>
+      <div id="prec-seleccion-count" style="font-size:11px;color:var(--text3);margin-top:5px;font-family:'DM Mono',monospace;"></div>
     </div>
+
+    <!-- PANEL NUEVOS (informativo) -->
+    <div id="prec-nuevos-panel" style="display:none;margin-top:2px;">
+      <div id="prec-nuevos-info" style="background:rgba(74,124,89,0.08);border:1px solid rgba(74,124,89,0.25);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--text2);">
+        <span class="spinner" style="width:14px;height:14px;border-width:2px;vertical-align:middle;margin-right:6px;"></span> Calculando...
+      </div>
+    </div>
+
     <div class="modal-actions">
       <button class="btn" onclick="cerrarModal('modal-precio')">Cancelar</button>
-      <button class="btn primary" onclick="guardarPrecio()">Aplicar ajuste</button>
+      <button class="btn primary" id="btn-aplicar-precio" onclick="guardarPrecio()">Aplicar ajuste</button>
     </div>
   </div>
 </div>
@@ -1698,27 +1726,116 @@ async function loadPrecios(){
   }catch(e){ tbody.innerHTML=`<tr><td colspan="5"><div class="empty">Error: ${e.message}</div></td></tr>`; }
 }
 
+// Cache de licencias para el selector del modal de precios
+let _precLicenciasCache = [];
+
 async function abrirModalPrecio(){
   document.getElementById('prec-periodo').value = document.getElementById('filtro-periodo')?.value||'';
   document.getElementById('prec-indice').value='';
   document.getElementById('prec-usuario').value='';
-  document.getElementById('prec-fecha').value=new Date().toISOString().split('T')[0];
   document.getElementById('prec-notas').value='';
+  // Reset scope a "todos"
+  document.querySelector('input[name="prec-scope"][value="todos"]').checked = true;
+  document.getElementById('prec-seleccion-panel').style.display = 'none';
+  document.getElementById('prec-nuevos-panel').style.display = 'none';
+  // Precargar licencias en background para el selector
+  api('licencias?estado=eq.activa&moneda=eq.ARS&select=id,cliente_id,cuenta,descripcion,precio_actual,fecha_alta,clientes(nombre)')
+    .then(data => { _precLicenciasCache = data||[]; })
+    .catch(()=>{});
   abrirModal('modal-precio');
 }
+
+function onPrecScopeChange(){
+  const scope = document.querySelector('input[name="prec-scope"]:checked')?.value;
+  document.getElementById('prec-seleccion-panel').style.display = scope==='seleccion' ? 'block' : 'none';
+  document.getElementById('prec-nuevos-panel').style.display   = scope==='nuevos'    ? 'block' : 'none';
+  if(scope==='seleccion') renderPrecLicencias();
+  if(scope==='nuevos')    mostrarNuevosDelPeriodo();
+}
+
+function onPrecPeriodoChange(){
+  const scope = document.querySelector('input[name="prec-scope"]:checked')?.value;
+  if(scope==='nuevos') mostrarNuevosDelPeriodo();
+}
+
+async function mostrarNuevosDelPeriodo(){
+  const periodo = document.getElementById('prec-periodo').value;
+  const panel = document.getElementById('prec-nuevos-info');
+  if(!periodo){ panel.innerHTML = '<span style="color:var(--amber);">Seleccioná un período primero</span>'; return; }
+  panel.innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px;vertical-align:middle;margin-right:6px;"></span> Calculando...';
+  // Licencias cuya fecha_alta coincide con el período
+  const [y,m] = periodo.split('-').map(Number);
+  const fechaInicio = `${y}-${String(m).padStart(2,'0')}-01`;
+  const fechaFin    = `${y}-${String(m).padStart(2,'0')}-${new Date(y,m,0).getDate()}`;
+  try{
+    const lics = await api(`licencias?estado=eq.activa&moneda=eq.ARS&fecha_alta=gte.${fechaInicio}&fecha_alta=lte.${fechaFin}&select=id,precio_actual,clientes(nombre),descripcion`);
+    if(!lics?.length){
+      panel.innerHTML = '<span style="color:var(--text3);">No hay proyectos nuevos en este período</span>';
+      return;
+    }
+    const lista = lics.map(l=>`<strong>${l.clientes?.nombre||'—'}</strong>${l.descripcion?' · '+l.descripcion:''} <span style="color:var(--text3);font-family:'DM Mono',monospace;">$${fmt(l.precio_actual)}</span>`).join('<br>');
+    panel.innerHTML = `<strong style="color:var(--green);">${lics.length} proyecto${lics.length!==1?'s':''} nuevo${lics.length!==1?'s':''}</strong><br><div style="margin-top:6px;line-height:1.8;">${lista}</div>`;
+  }catch(e){
+    panel.innerHTML = '<span style="color:var(--red);">Error: '+e.message+'</span>';
+  }
+}
+
+function renderPrecLicencias(){
+  const q = (document.getElementById('prec-search')?.value||'').toLowerCase();
+  const lista = document.getElementById('prec-licencias-lista');
+  const CUENTA_LABELS = {totem_nube:'TN', gestion_play:'GP', validar:'VAL', carlos_pussetto:'CP'};
+  const CUENTA_COLORS = {totem_nube:'var(--amber)', gestion_play:'var(--blue)', validar:'var(--green)', carlos_pussetto:'var(--purple)'};
+  const filtered = _precLicenciasCache.filter(l=>{
+    const nombre = l.clientes?.nombre||'';
+    return !q || nombre.toLowerCase().includes(q) || (l.descripcion||'').toLowerCase().includes(q);
+  });
+  if(!filtered.length){
+    lista.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text3);font-size:13px;">Sin resultados</div>';
+    actualizarConteoSeleccion();
+    return;
+  }
+  lista.innerHTML = filtered.map(l=>`
+    <label style="display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px;" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
+      <input type="checkbox" data-lic-id="${l.id}" data-precio="${l.precio_actual}" onchange="actualizarConteoSeleccion()" style="width:15px;height:15px;accent-color:var(--accent);flex-shrink:0;">
+      <span style="flex:1;"><strong>${l.clientes?.nombre||'—'}</strong>${l.descripcion?' <span style="color:var(--text3);">· '+l.descripcion+'</span>':''}</span>
+      <span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);">$${fmt(l.precio_actual)}</span>
+      <span style="font-size:10px;font-weight:600;color:${CUENTA_COLORS[l.cuenta]||'var(--text3)'};">${CUENTA_LABELS[l.cuenta]||l.cuenta}</span>
+    </label>`).join('');
+  actualizarConteoSeleccion();
+}
+
+function filtrarPrecLicencias(){
+  renderPrecLicencias();
+}
+
+function actualizarConteoSeleccion(){
+  const checked = document.querySelectorAll('#prec-licencias-lista input[type="checkbox"]:checked');
+  const el = document.getElementById('prec-seleccion-count');
+  el.textContent = checked.length ? `${checked.length} proyecto${checked.length!==1?'s':''} seleccionado${checked.length!==1?'s':''}` : '';
+}
+
 async function guardarPrecio(){
   const periodo = document.getElementById('prec-periodo').value;
   const indice = parseFloat(document.getElementById('prec-indice').value);
   if(!periodo||isNaN(indice)||indice<=0){ toast('Período e índice son obligatorios'); return; }
-  
-  // Protección contra doble click
-  const btn = document.querySelector('#modal-precio .btn.primary');
+
+  const scope = document.querySelector('input[name="prec-scope"]:checked')?.value || 'todos';
+
+  // Validar selección manual
+  let licIdsSeleccionados = [];
+  if(scope==='seleccion'){
+    const checked = document.querySelectorAll('#prec-licencias-lista input[type="checkbox"]:checked');
+    if(!checked.length){ toast('Seleccioná al menos un proyecto'); return; }
+    licIdsSeleccionados = Array.from(checked).map(c=>parseInt(c.dataset.licId));
+  }
+
+  const btn = document.getElementById('btn-aplicar-precio');
   if(btn.disabled) return;
   btn.disabled = true;
   btn.textContent = 'Aplicando...';
 
   try{
-    // Verificar si ya existe registro para este período
+    // Verificar duplicado
     const existente = await api('actualizaciones_precio?periodo=eq.'+periodo+'&select=id').catch(()=>[]);
     if(existente?.length){
       toast('Ya existe una actualización para este período');
@@ -1726,23 +1843,40 @@ async function guardarPrecio(){
       return;
     }
 
-    // Guardar registro
+    // Guardar registro en actualizaciones_precio
     await api('actualizaciones_precio','POST',{
-      periodo, indice_inflacion: indice,
-      fecha_aplicacion: document.getElementById('prec-fecha').value,
+      periodo,
+      indice_inflacion: indice,
+      fecha_aplicacion: `${periodo}-01`,
       aplicado_por: document.getElementById('prec-usuario').value.trim(),
       notas: document.getElementById('prec-notas').value.trim()
     });
-    
-    // Actualizar precios de licencias activas en ARS
+
+    // Determinar qué licencias actualizar según scope
     const factor = 1 + (indice/100);
-    const licencias = await api('licencias?estado=eq.activa&moneda=eq.ARS&select=id,precio_actual');
+    let licencias = [];
+
+    if(scope==='todos'){
+      licencias = await api('licencias?estado=eq.activa&moneda=eq.ARS&select=id,precio_actual');
+    } else if(scope==='nuevos'){
+      const [y,m] = periodo.split('-').map(Number);
+      const fechaInicio = `${y}-${String(m).padStart(2,'0')}-01`;
+      const fechaFin    = `${y}-${String(m).padStart(2,'0')}-${new Date(y,m,0).getDate()}`;
+      licencias = await api(`licencias?estado=eq.activa&moneda=eq.ARS&fecha_alta=gte.${fechaInicio}&fecha_alta=lte.${fechaFin}&select=id,precio_actual`);
+    } else if(scope==='seleccion'){
+      // Traer precios actuales de los seleccionados
+      licencias = await Promise.all(
+        licIdsSeleccionados.map(id => api('licencias?id=eq.'+id+'&select=id,precio_actual').then(r=>r?.[0]))
+      ).then(r=>r.filter(Boolean));
+    }
+
     if(licencias?.length){
       await Promise.all(licencias.map(l=>
         api('licencias?id=eq.'+l.id,'PATCH',{precio_actual: Math.round(l.precio_actual*factor*100)/100})
       ));
     }
-    toast(`Precios actualizados (${licencias?.length||0} licencias)`);
+
+    toast(`✅ Índice guardado · ${licencias?.length||0} licencia${licencias?.length!==1?'s':''} actualizada${licencias?.length!==1?'s':''}`);
     cerrarModal('modal-precio');
     loadPrecios();
   }catch(e){
