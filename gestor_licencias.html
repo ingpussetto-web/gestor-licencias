@@ -351,6 +351,33 @@ tr:hover td { background: var(--bg2); }
 /* ── EMPTY ── */
 .empty { padding: 40px; text-align: center; color: var(--text3); }
 .empty-icon { font-size: 36px; margin-bottom: 10px; }
+
+/* ── BANNER MIGRACION ── */
+#banner-migracion {
+  display: none;
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  background: #1a2a1a;
+  border: 1px solid #2d5a2d;
+  border-radius: 12px;
+  padding: 14px 20px;
+  min-width: 320px;
+  max-width: 480px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  animation: slideDown 0.3s ease-out;
+}
+@keyframes slideDown { from { opacity:0; top:4px; } to { opacity:1; top:20px; } }
+.banner-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+.banner-title { font-size:13px; font-weight:600; color:#5dba5d; }
+.banner-close { background:none; border:none; color:#888; cursor:pointer; font-size:16px; padding:0 2px; line-height:1; }
+.banner-close:hover { color:#ccc; }
+.banner-body { font-size:12px; color:#aaa; line-height:1.5; }
+.banner-items { margin-top:8px; display:flex; flex-direction:column; gap:4px; }
+.banner-item { font-size:11px; color:#ccc; padding:4px 8px; background:rgba(255,255,255,0.04); border-radius:6px; }
+.banner-ver { margin-top:10px; font-size:11px; color:#5dba5d; cursor:pointer; text-decoration:underline; }
 </style>
 </head>
 <body>
@@ -892,6 +919,14 @@ tr:hover td { background: var(--bg2); }
   </div>
 </div>
 
+<div id="banner-migracion">
+  <div class="banner-header">
+    <span class="banner-title">🔄 Novedades desde Totem Nube</span>
+    <button class="banner-close" onclick="cerrarBanner()">✕</button>
+  </div>
+  <div class="banner-body" id="banner-body"></div>
+  <div class="banner-ver" onclick="cerrarBanner(); showPage('clientes');">Ver clientes →</div>
+</div>
 <div id="toast"></div>
 
 <script>
@@ -2241,12 +2276,62 @@ async function sincronizarCobranzas(periodo){
     if(syncEl) syncEl.style.display = 'none';
   }
 }
+const BANNER_KEY = 'gestor_ultimo_check';
+
+async function checkMigraciones(){
+  try {
+    const ultimoCheck = localStorage.getItem(BANNER_KEY) || '2000-01-01T00:00:00Z';
+    const ahora = new Date().toISOString();
+
+    // Buscar clientes migrados desde Totem Nube después del último check
+    const clientesNuevos = await api(
+      `clientes?created_at=gt.${ultimoCheck}&notas=like.*Migrado desde Totem Nube*&select=id,nombre,created_at&order=created_at.desc`
+    ).catch(()=>[]);
+
+    // Buscar licencias migradas desde Totem Nube después del último check
+    const licenciasNuevas = await api(
+      `licencias?created_at=gt.${ultimoCheck}&notas=like.*Migrado desde Totem Nube*&select=id,descripcion,cuenta,created_at&order=created_at.desc`
+    ).catch(()=>[]);
+
+    const totalNuevos = (clientesNuevos||[]).length + (licenciasNuevas||[]).length;
+
+    if(totalNuevos > 0){
+      const body = document.getElementById('banner-body');
+      let html = `Se ${totalNuevos===1?'migró':'migraron'} <strong>${totalNuevos} registro${totalNuevos===1?'':'s'} nuevo${totalNuevos===1?'':'s'}</strong> desde Totem Nube:<div class="banner-items">`;
+
+      (clientesNuevos||[]).slice(0,3).forEach(c=>{
+        html += `<div class="banner-item">👤 Cliente: ${c.nombre}</div>`;
+      });
+      (licenciasNuevas||[]).slice(0,3).forEach(l=>{
+        html += `<div class="banner-item">🔑 Licencia: ${l.descripcion||l.cuenta||'—'}</div>`;
+      });
+      if(totalNuevos > 6) html += `<div class="banner-item" style="color:#888;">... y ${totalNuevos-6} más</div>`;
+      html += '</div>';
+
+      body.innerHTML = html;
+      document.getElementById('banner-migracion').style.display = 'block';
+    }
+
+    // Actualizar timestamp del último check
+    localStorage.setItem(BANNER_KEY, ahora);
+  } catch(e){
+    console.log('Error chequeando migraciones:', e);
+  }
+}
+
+function cerrarBanner(){
+  document.getElementById('banner-migracion').style.display = 'none';
+}
+
 async function init(){
   document.getElementById('cfg-url').value = SUPA_URL;
   document.getElementById('cfg-key').value = SUPA_KEY;
   generarPeriodos();
   const ok = await checkConnection();
-  if(ok) loadClientes();
+  if(ok){
+    loadClientes();
+    checkMigraciones();
+  }
   else if(!SUPA_URL||!SUPA_KEY) showPage('config');
 }
 init();
