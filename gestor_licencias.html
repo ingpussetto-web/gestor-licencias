@@ -160,6 +160,10 @@ main {
 }
 .stat-val { font-size: 24px; font-weight: 700; font-family: 'DM Mono', monospace; color: var(--accent); }
 .stat-label { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.hero-stats { display:flex; gap:24px; align-items:center; }
+.hero-stat { text-align:right; }
+.hero-stat-val { font-family:'DM Mono',monospace; font-size:28px; font-weight:700; color:var(--accent); line-height:1; }
+.hero-stat-label { font-size:11px; color:var(--text3); margin-top:3px; }
 
 /* ── BOTONES ── */
 .btn {
@@ -438,10 +442,11 @@ tr:hover td { background: var(--bg2); }
             <option value="carlos_pussetto">Carlos Pussetto</option>
             <option value="validar_cp">Validar CP</option>
           </select>
-          <select class="form-select" style="width:140px;" id="filtro-estado-cliente" onchange="filtrarClientes()">
+          <select class="form-select" style="width:150px;" id="filtro-estado-cliente" onchange="filtrarClientes()">
             <option value="">Todos</option>
-            <option value="true">Activos</option>
-            <option value="false">Inactivos</option>
+            <option value="activo">Activos</option>
+            <option value="inactivo">Inactivos</option>
+            <option value="baja">Dados de Baja</option>
           </select>
         </div>
         <table>
@@ -470,6 +475,7 @@ tr:hover td { background: var(--bg2); }
           <div class="page-title">Licencias</div>
           <div class="page-subtitle">Todas las licencias activas por cliente</div>
         </div>
+        <div class="hero-stats" id="licencias-hero"></div>
         <button class="btn primary" onclick="abrirModalLicencia()">+ Nueva licencia</button>
       </div>
       <div id="licencias-stats" class="stats-bar"></div>
@@ -498,6 +504,8 @@ tr:hover td { background: var(--bg2); }
             <option value="activa">Activas</option>
             <option value="">Todas</option>
             <option value="inactiva">Inactivas</option>
+            <option value="en_proceso">En Proceso</option>
+            <option value="dada_de_baja">Dadas de Baja</option>
           </select>
         </div>
         <table>
@@ -643,8 +651,9 @@ tr:hover td { background: var(--bg2); }
       <div class="form-group">
         <label class="form-label">Estado</label>
         <select class="form-select" id="cli-activo">
-          <option value="true">Activo</option>
-          <option value="false">Inactivo</option>
+          <option value="activo">Activo</option>
+          <option value="inactivo">Inactivo</option>
+          <option value="baja">Dado de Baja</option>
         </select>
       </div>
     </div>
@@ -716,6 +725,7 @@ tr:hover td { background: var(--bg2); }
         <select class="form-select" id="lic-estado">
           <option value="activa">Activa</option>
           <option value="inactiva">Inactiva</option>
+          <option value="en_proceso">En Proceso</option>
         </select>
       </div>
     </div>
@@ -975,12 +985,12 @@ const TIPO_LABELS = {
   cuos_vigilancia:'CUOS Vigilancia', agro:'Agro'
 };
 const ESTADO_BADGE = {
-  activa:'badge-green', inactiva:'badge-gray', dada_de_baja:'badge-red',
+  activa:'badge-green', inactiva:'badge-gray', dada_de_baja:'badge-red', en_proceso:'badge-amber',
   borrador:'badge-gray', enviada:'badge-blue',
   cobrada:'badge-green', vencida:'badge-red', incobrable:'badge-red'
 };
 const ESTADO_LABEL = {
-  activa:'Activa', inactiva:'Inactiva', dada_de_baja:'Dada de Baja',
+  activa:'Activa', inactiva:'Inactiva', dada_de_baja:'Dada de Baja', en_proceso:'En Proceso',
   borrador:'Borrador', enviada:'Enviada',
   cobrada:'Cobrada', vencida:'Vencida', incobrable:'Incobrable'
 };
@@ -1054,7 +1064,7 @@ async function loadClientes(){
   const tbody = document.getElementById('clientes-tbody');
   tbody.innerHTML = '<tr><td colspan="7"><div class="loading"><span class="spinner"></span>Cargando...</div></td></tr>';
   try{
-    const data = await api('clientes?select=id,nombre,cuit,email,telefono,contacto,activo&order=nombre.asc');
+    const data = await api('clientes?select=id,nombre,cuit,email,telefono,contacto,activo,baja&order=nombre.asc');
     _clientesData = data||[];
     // contar licencias por cliente
     const lics = await api('licencias?select=cliente_id,estado,cuenta').catch(()=>[]);
@@ -1068,23 +1078,9 @@ async function loadClientes(){
       }
     });
     
-    const activos = _clientesData.filter(c=>c.activo).length;
-    const conTN = _clientesData.filter(c=>licCuentaMap[c.id]?.has('totem_nube')).length;
-    const conGP = _clientesData.filter(c=>licCuentaMap[c.id]?.has('gestion_play')).length;
-    const conVAL = _clientesData.filter(c=>licCuentaMap[c.id]?.has('validar')).length;
-    const conCP = _clientesData.filter(c=>licCuentaMap[c.id]?.has('carlos_pussetto')).length;
-    const conVCP = _clientesData.filter(c=>licCuentaMap[c.id]?.has('validar_cp')).length;
-    document.getElementById('clientes-stats').innerHTML =
-      `<div class="stat-card"><div class="stat-val">${_clientesData.length}</div><div class="stat-label">Total clientes</div></div>`+
-      `<div class="stat-card"><div class="stat-val" style="color:var(--accent);">${conTN}</div><div class="stat-label">Totem Nube</div></div>`+
-      `<div class="stat-card"><div class="stat-val" style="color:var(--blue);">${conGP}</div><div class="stat-label">Gestion Play</div></div>`+
-      `<div class="stat-card"><div class="stat-val" style="color:var(--green);">${conVAL}</div><div class="stat-label">Validar GP</div></div>`+
-      `<div class="stat-card"><div class="stat-val" style="color:var(--purple);">${conCP}</div><div class="stat-label">Carlos Pussetto</div></div>`+
-      `<div class="stat-card"><div class="stat-val" style="color:var(--red);">${conVCP}</div><div class="stat-label">Validar CP</div></div>`;
-    
     _licCuentaMap = licCuentaMap;
     _licCount = licCount;
-    renderClientes(_clientesData, licCount);
+    filtrarClientes();
     _clientes = []; // invalidar cache
   }catch(e){ tbody.innerHTML=`<tr><td colspan="7"><div class="empty">Error: ${e.message}</div></td></tr>`; }
 }
@@ -1099,7 +1095,7 @@ function renderClientes(data, licCount){
       <td>${c.email||'—'}</td>
       <td>${c.telefono||'—'}</td>
       <td style="text-align:center;"><span class="badge badge-blue">${licCount[c.id]||0}</span></td>
-      <td><span class="badge ${c.activo?'badge-green':'badge-gray'}">${c.activo?'Activo':'Inactivo'}</span></td>
+      <td><span class="badge ${c.baja?'badge-red':c.activo?'badge-green':'badge-gray'}">${c.baja?'Dado de Baja':c.activo?'Activo':'Inactivo'}</span></td>
       <td style="text-align:right;">
         <button class="btn sm" onclick="editarCliente(${c.id})">✏ Editar</button>
         <button class="btn sm" onclick="eliminarCliente(${c.id})" style="border-color:var(--red);color:var(--red);">✕</button>
@@ -1107,17 +1103,44 @@ function renderClientes(data, licCount){
     </tr>`).join('');
 }
 
+function estadoCliente(c){ return c.baja?'baja':c.activo?'activo':'inactivo'; }
+
 function filtrarClientes(){
   const q = document.getElementById('search-clientes').value.toLowerCase();
   const est = document.getElementById('filtro-estado-cliente').value;
   const cuenta = document.getElementById('filtro-cuenta-cliente').value;
   const filtered = _clientesData.filter(c=>{
     const matchQ = !q || c.nombre.toLowerCase().includes(q) || (c.cuit||'').includes(q) || (c.email||'').toLowerCase().includes(q);
-    const matchEst = est==='' || String(c.activo)===est;
+    const matchEst = !est || estadoCliente(c)===est;
     const matchCuenta = !cuenta || _licCuentaMap[c.id]?.has(cuenta);
     return matchQ && matchEst && matchCuenta;
   });
+  renderClientesStats(filtered);
   renderClientes(filtered, _licCount);
+}
+
+function renderClientesStats(filtered){
+  const total = filtered.length;
+  const nActivos = filtered.filter(c=>!c.baja && c.activo).length;
+  const nInactivos = filtered.filter(c=>!c.baja && !c.activo).length;
+  const nBaja = filtered.filter(c=>c.baja).length;
+  const CUENTAS = [
+    {key:'totem_nube',     label:'Totem Nube',      color:'var(--accent)'},
+    {key:'gestion_play',   label:'Gestion Play',     color:'var(--blue)'},
+    {key:'validar',        label:'Validar GP',        color:'var(--green)'},
+    {key:'carlos_pussetto',label:'Carlos Pussetto',  color:'var(--purple)'},
+    {key:'validar_cp',     label:'Validar CP',        color:'var(--red)'},
+  ];
+  let html =
+    `<div class="stat-card"><div class="stat-val">${total}</div><div class="stat-label">Total clientes</div></div>`+
+    `<div class="stat-card"><div class="stat-val" style="color:var(--green);">${nActivos}</div><div class="stat-label">Activos</div></div>`+
+    `<div class="stat-card"><div class="stat-val" style="color:var(--text3);">${nInactivos}</div><div class="stat-label">Inactivos</div></div>`+
+    `<div class="stat-card"><div class="stat-val" style="color:var(--red);">${nBaja}</div><div class="stat-label">Dados de Baja</div></div>`;
+  for(const c of CUENTAS){
+    const n = filtered.filter(x=>_licCuentaMap[x.id]?.has(c.key)).length;
+    html += `<div class="stat-card"><div class="stat-val" style="color:${c.color};">${n}</div><div class="stat-label">${c.label}</div></div>`;
+  }
+  document.getElementById('clientes-stats').innerHTML = html;
 }
 
 let _editClienteId = null;
@@ -1125,7 +1148,7 @@ function abrirModalCliente(){
   _editClienteId = null;
   document.getElementById('modal-cliente-title').textContent = 'Nuevo cliente';
   ['cli-nombre','cli-cuit','cli-email','cli-tel','cli-contacto','cli-notas'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('cli-activo').value = 'true';
+  document.getElementById('cli-activo').value = 'activo';
   document.getElementById('cli-licencias-lista').innerHTML = '';
   document.getElementById('cli-licencias-seccion').style.display = 'block';
   abrirModal('modal-cliente');
@@ -1141,7 +1164,7 @@ async function editarCliente(id){
   document.getElementById('cli-tel').value = c.telefono||'';
   document.getElementById('cli-contacto').value = c.contacto||'';
   document.getElementById('cli-notas').value = c.notas||'';
-  document.getElementById('cli-activo').value = String(c.activo);
+  document.getElementById('cli-activo').value = estadoCliente(c);
 
   // Cargar licencias existentes del cliente
   const lista = document.getElementById('cli-licencias-lista');
@@ -1159,8 +1182,8 @@ async function editarCliente(id){
         .map(t=>`<option value="${t}" ${t===sel?'selected':''}>${{turnero:'Turnero',publicidad:'Publicidad digital',ia:'Agente IA',autogestion:'Autogestión y pagos',cuos_atencion:'CUOS Atención remota',cuos_vigilancia:'CUOS Vigilancia',agro:'Agro'}[t]}</option>`).join('');
       const cuentasOpts = (sel)=>['totem_nube','gestion_play','validar','carlos_pussetto','validar_cp']
         .map(c=>`<option value="${c}" ${c===sel?'selected':''}>${{totem_nube:'Totem Nube',gestion_play:'Gestion Play',validar:'Validar GP',carlos_pussetto:'Carlos Pussetto',validar_cp:'Validar CP'}[c]}</option>`).join('');
-      const estadosOpts = (sel)=>['activa','inactiva']
-        .map(e=>`<option value="${e}" ${e===sel?'selected':''}>${e==='activa'?'Activa':'Inactiva'}</option>`).join('');
+      const estadosOpts = (sel)=>['activa','inactiva','en_proceso']
+        .map(e=>`<option value="${e}" ${e===sel?'selected':''}>${ESTADO_LABEL[e]||e}</option>`).join('');
 
       lics.forEach(l=>{
         const row = document.createElement('div');
@@ -1274,7 +1297,8 @@ async function guardarCliente(){
     telefono: document.getElementById('cli-tel').value.trim(),
     contacto: document.getElementById('cli-contacto').value.trim(),
     notas: document.getElementById('cli-notas').value.trim(),
-    activo: document.getElementById('cli-activo').value==='true'
+    activo: document.getElementById('cli-activo').value==='activo',
+    baja:   document.getElementById('cli-activo').value==='baja'
   };
   try{
     if(_editClienteId){
@@ -1370,9 +1394,23 @@ function renderLicenciasStats(filtered){
   const pct = (n, total) => total>0
     ? `<span style="font-size:11px;color:var(--text3);font-weight:400;margin-left:5px;">${(n/total*100).toFixed(1)}%</span>`
     : '';
-  const activas = filtered.filter(l=>l.estado==='activa');
-  const totalARS = activas.filter(l=>l.moneda==='ARS').reduce((s,l)=>s+(l.precio_actual||0),0);
-  const totalUSD = activas.filter(l=>l.moneda==='USD').reduce((s,l)=>s+(l.precio_actual||0),0);
+  const activasF   = filtered.filter(l=>l.estado==='activa');
+  const inactivasF  = filtered.filter(l=>l.estado==='inactiva');
+  const enProcesoF  = filtered.filter(l=>l.estado==='en_proceso');
+  const activas = activasF; // alias para compatibilidad con código de cuenta abajo
+  const totalARS    = activasF.filter(l=>l.moneda==='ARS').reduce((s,l)=>s+(l.precio_actual||0),0);
+  const totalUSD    = activasF.filter(l=>l.moneda==='USD').reduce((s,l)=>s+(l.precio_actual||0),0);
+  const arsInactivas = inactivasF.filter(l=>l.moneda==='ARS').reduce((s,l)=>s+(l.precio_actual||0),0);
+  const arsEnProceso = enProcesoF.filter(l=>l.moneda==='ARS').reduce((s,l)=>s+(l.precio_actual||0),0);
+
+  // Hero: siempre muestra totales del conjunto filtrado en el encabezado
+  const heroEl = document.getElementById('licencias-hero');
+  if(heroEl) heroEl.innerHTML =
+    `<div class="hero-stat"><div class="hero-stat-val">${activasF.length}</div><div class="hero-stat-label">Licencias activas</div></div>`+
+    `<div style="width:1px;height:40px;background:var(--border2);"></div>`+
+    `<div class="hero-stat"><div class="hero-stat-val">$${fmt(totalARS)}</div><div class="hero-stat-label">Facturación ARS/mes</div></div>`+
+    (totalUSD>0?`<div style="width:1px;height:40px;background:var(--border2);"></div><div class="hero-stat"><div class="hero-stat-val">USD ${fmt(totalUSD)}</div><div class="hero-stat-label">Facturación USD/mes</div></div>`:'');
+
   const CUENTAS = [
     {key:'totem_nube',     label:'Totem Nube',       color:'var(--accent)'},
     {key:'gestion_play',   label:'Gestion Play',      color:'var(--blue)'},
@@ -1380,17 +1418,23 @@ function renderLicenciasStats(filtered){
     {key:'carlos_pussetto',label:'Carlos Pussetto',   color:'var(--purple)'},
     {key:'validar_cp',     label:'Validar CP',         color:'var(--red)'},
   ];
-  let html = '';
+  // Bloque de estados — siempre visible
+  const totalFiltered = filtered.length;
+  let html =
+    `<div class="stat-card"><div class="stat-val" style="color:var(--green);">${activasF.length}${pct(activasF.length,totalFiltered)}</div><div class="stat-label">Activas</div></div>`+
+    `<div class="stat-card"><div class="stat-val" style="color:var(--green);font-size:16px;">$${fmt(totalARS)}${pct(totalARS,totalARS+arsInactivas+arsEnProceso)}</div><div class="stat-label">Activas ARS</div></div>`+
+    `<div class="stat-card"><div class="stat-val" style="color:var(--amber);">${enProcesoF.length}${pct(enProcesoF.length,totalFiltered)}</div><div class="stat-label">En Proceso</div></div>`+
+    `<div class="stat-card"><div class="stat-val" style="color:var(--amber);font-size:16px;">$${fmt(arsEnProceso)}</div><div class="stat-label">En Proceso ARS</div></div>`+
+    `<div class="stat-card"><div class="stat-val" style="color:var(--text3);">${inactivasF.length}${pct(inactivasF.length,totalFiltered)}</div><div class="stat-label">Inactivas</div></div>`+
+    `<div class="stat-card"><div class="stat-val" style="color:var(--text3);font-size:16px;">$${fmt(arsInactivas)}</div><div class="stat-label">Inactivas ARS</div></div>`;
+
   if(!cuentaFiltro){
-    html += `<div class="stat-card"><div class="stat-val">${activas.length}</div><div class="stat-label">Total activas</div></div>`;
     for(const c of CUENTAS){
       const ca = activas.filter(l=>l.cuenta===c.key);
       const ct = ca.filter(l=>l.moneda==='ARS').reduce((s,l)=>s+(l.precio_actual||0),0);
       html += `<div class="stat-card"><div class="stat-val" style="color:${c.color};">${ca.length}${pct(ca.length,activas.length)}</div><div class="stat-label">${c.label}</div></div>`;
       html += `<div class="stat-card"><div class="stat-val" style="color:${c.color};">$${fmt(ct)}${pct(ct,totalARS)}</div><div class="stat-label">${c.label} ARS</div></div>`;
     }
-    html += `<div class="stat-card"><div class="stat-val">$${fmt(totalARS)}</div><div class="stat-label">Total mensual ARS</div></div>`;
-    if(totalUSD>0) html += `<div class="stat-card"><div class="stat-val">USD ${fmt(totalUSD)}</div><div class="stat-label">Total mensual USD</div></div>`;
   } else {
     const CUENTA_COLORS = {totem_nube:'var(--accent)',gestion_play:'var(--blue)',validar:'var(--green)',carlos_pussetto:'var(--purple)',validar_cp:'var(--red)'};
     const CUENTA_LABELS = {totem_nube:'Totem Nube',gestion_play:'Gestion Play',validar:'Validar GP',carlos_pussetto:'Carlos Pussetto',validar_cp:'Validar CP'};
@@ -1420,8 +1464,8 @@ function renderLicencias(data){
       <td>
         <select
           onchange="cambiarEstadoLicencia(${l.id}, this.value, this, ${l.cliente_id})"
-          style="padding:3px 8px;border-radius:6px;border:1px solid var(--border2);background:var(--surface);font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;color:${l.estado==='activa'?'var(--green)':l.estado==='dada_de_baja'?'var(--red)':'var(--text3)'};min-width:110px;">
-          ${['activa','inactiva','dada_de_baja'].map(e=>`<option value="${e}" ${e===l.estado?'selected':''} style="color:${e==='activa'?'var(--green)':e==='dada_de_baja'?'var(--red)':'var(--text3)'};">${ESTADO_LABEL[e]}</option>`).join('')}
+          style="padding:3px 8px;border-radius:6px;border:1px solid var(--border2);background:var(--surface);font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;color:${l.estado==='activa'?'var(--green)':l.estado==='dada_de_baja'?'var(--red)':l.estado==='en_proceso'?'var(--amber)':'var(--text3)'};min-width:110px;">
+          ${['activa','inactiva','en_proceso','dada_de_baja'].map(e=>`<option value="${e}" ${e===l.estado?'selected':''} style="color:${e==='activa'?'var(--green)':e==='dada_de_baja'?'var(--red)':e==='en_proceso'?'var(--amber)':'var(--text3)'};">${ESTADO_LABEL[e]}</option>`).join('')}
         </select>
       </td>
       <td style="text-align:right;">
@@ -1472,7 +1516,7 @@ async function cambiarEstadoLicencia(licenciaId, nuevoEstado, selectEl, clienteI
     await api('licencias?id=eq.'+licenciaId, 'PATCH', { estado: nuevoEstado });
     const reg = _licenciasData.find(l=>l.id===licenciaId);
     if(reg) reg.estado = nuevoEstado;
-    if(selectEl) selectEl.style.color = nuevoEstado==='activa'?'var(--green)':'var(--text3)';
+    if(selectEl) selectEl.style.color = nuevoEstado==='activa'?'var(--green)':nuevoEstado==='en_proceso'?'var(--amber)':'var(--text3)';
     toast('Estado actualizado');
   }catch(e){
     if(selectEl){ const reg = _licenciasData.find(l=>l.id===licenciaId); if(reg) selectEl.value = reg.estado; }
