@@ -1336,33 +1336,6 @@ async function loadLicencias(){
   try{
     const data = await api('licencias?select=id,cliente_id,tipo,cuenta,descripcion,precio_actual,moneda,estado,fecha_alta,parametros,notas,clientes(nombre)&order=clientes(nombre).asc');
     _licenciasData = data||[];
-    const activas = _licenciasData.filter(l=>l.estado==='activa');
-    const activasTN = activas.filter(l=>l.cuenta==='totem_nube');
-    const activasGP = activas.filter(l=>l.cuenta==='gestion_play');
-    const activasVAL = activas.filter(l=>l.cuenta==='validar');
-    const activasCP = activas.filter(l=>l.cuenta==='carlos_pussetto');
-    const activasVCP = activas.filter(l=>l.cuenta==='validar_cp');
-    const totalARS = activas.filter(l=>l.moneda==='ARS').reduce((s,l)=>s+(l.precio_actual||0),0);
-    const totalTN = activasTN.filter(l=>l.moneda==='ARS').reduce((s,l)=>s+(l.precio_actual||0),0);
-    const totalGP = activasGP.filter(l=>l.moneda==='ARS').reduce((s,l)=>s+(l.precio_actual||0),0);
-    const totalVAL = activasVAL.filter(l=>l.moneda==='ARS').reduce((s,l)=>s+(l.precio_actual||0),0);
-    const totalCP = activasCP.filter(l=>l.moneda==='ARS').reduce((s,l)=>s+(l.precio_actual||0),0);
-    const totalVCP = activasVCP.filter(l=>l.moneda==='ARS').reduce((s,l)=>s+(l.precio_actual||0),0);
-    const totalUSD = activas.filter(l=>l.moneda==='USD').reduce((s,l)=>s+(l.precio_actual||0),0);
-    document.getElementById('licencias-stats').innerHTML =
-      `<div class="stat-card"><div class="stat-val">${activas.length}</div><div class="stat-label">Total activas</div></div>`+
-      `<div class="stat-card"><div class="stat-val" style="color:var(--accent);">${activasTN.length}</div><div class="stat-label">Totem Nube</div></div>`+
-      `<div class="stat-card"><div class="stat-val" style="color:var(--blue);">${activasGP.length}</div><div class="stat-label">Gestion Play</div></div>`+
-      `<div class="stat-card"><div class="stat-val" style="color:var(--green);">${activasVAL.length}</div><div class="stat-label">Validar GP</div></div>`+
-      `<div class="stat-card"><div class="stat-val" style="color:var(--purple);">${activasCP.length}</div><div class="stat-label">Carlos Pussetto</div></div>`+
-      `<div class="stat-card"><div class="stat-val" style="color:var(--red);">${activasVCP.length}</div><div class="stat-label">Validar CP</div></div>`+
-      `<div class="stat-card"><div class="stat-val">$${fmt(totalARS)}</div><div class="stat-label">Total mensual ARS</div></div>`+
-      `<div class="stat-card"><div class="stat-val" style="color:var(--accent);">$${fmt(totalTN)}</div><div class="stat-label">Totem Nube ARS</div></div>`+
-      `<div class="stat-card"><div class="stat-val" style="color:var(--blue);">$${fmt(totalGP)}</div><div class="stat-label">Gestion Play ARS</div></div>`+
-      `<div class="stat-card"><div class="stat-val" style="color:var(--green);">$${fmt(totalVAL)}</div><div class="stat-label">Validar GP ARS</div></div>`+
-      `<div class="stat-card"><div class="stat-val" style="color:var(--purple);">$${fmt(totalCP)}</div><div class="stat-label">Carlos Pussetto ARS</div></div>`+
-      `<div class="stat-card"><div class="stat-val" style="color:var(--red);">$${fmt(totalVCP)}</div><div class="stat-label">Validar CP ARS</div></div>`+
-      (totalUSD>0?`<div class="stat-card"><div class="stat-val">USD ${fmt(totalUSD)}</div><div class="stat-label">Total mensual USD</div></div>`:'');
     
     // Poblar selector de clientes en modal
     const clientes = await getClientes();
@@ -1386,7 +1359,48 @@ function filtrarLicencias(){
     const matchCuenta = !cuenta || l.cuenta===cuenta;
     return matchQ && matchTipo && matchEst && matchCuenta;
   });
+  renderLicenciasStats(filtered);
   renderLicencias(filtered);
+}
+
+function renderLicenciasStats(filtered){
+  const cuentaFiltro = document.getElementById('filtro-cuenta-lic').value;
+  const activasAll = _licenciasData.filter(l=>l.estado==='activa');
+  const totalAllARS = activasAll.filter(l=>l.moneda==='ARS').reduce((s,l)=>s+(l.precio_actual||0),0);
+  const pct = (n, total) => total>0
+    ? `<span style="font-size:11px;color:var(--text3);font-weight:400;margin-left:5px;">${(n/total*100).toFixed(1)}%</span>`
+    : '';
+  const activas = filtered.filter(l=>l.estado==='activa');
+  const totalARS = activas.filter(l=>l.moneda==='ARS').reduce((s,l)=>s+(l.precio_actual||0),0);
+  const totalUSD = activas.filter(l=>l.moneda==='USD').reduce((s,l)=>s+(l.precio_actual||0),0);
+  const CUENTAS = [
+    {key:'totem_nube',     label:'Totem Nube',       color:'var(--accent)'},
+    {key:'gestion_play',   label:'Gestion Play',      color:'var(--blue)'},
+    {key:'validar',        label:'Validar GP',         color:'var(--green)'},
+    {key:'carlos_pussetto',label:'Carlos Pussetto',   color:'var(--purple)'},
+    {key:'validar_cp',     label:'Validar CP',         color:'var(--red)'},
+  ];
+  let html = '';
+  if(!cuentaFiltro){
+    html += `<div class="stat-card"><div class="stat-val">${activas.length}</div><div class="stat-label">Total activas</div></div>`;
+    for(const c of CUENTAS){
+      const ca = activas.filter(l=>l.cuenta===c.key);
+      const ct = ca.filter(l=>l.moneda==='ARS').reduce((s,l)=>s+(l.precio_actual||0),0);
+      html += `<div class="stat-card"><div class="stat-val" style="color:${c.color};">${ca.length}${pct(ca.length,activas.length)}</div><div class="stat-label">${c.label}</div></div>`;
+      html += `<div class="stat-card"><div class="stat-val" style="color:${c.color};">$${fmt(ct)}${pct(ct,totalARS)}</div><div class="stat-label">${c.label} ARS</div></div>`;
+    }
+    html += `<div class="stat-card"><div class="stat-val">$${fmt(totalARS)}</div><div class="stat-label">Total mensual ARS</div></div>`;
+    if(totalUSD>0) html += `<div class="stat-card"><div class="stat-val">USD ${fmt(totalUSD)}</div><div class="stat-label">Total mensual USD</div></div>`;
+  } else {
+    const CUENTA_COLORS = {totem_nube:'var(--accent)',gestion_play:'var(--blue)',validar:'var(--green)',carlos_pussetto:'var(--purple)',validar_cp:'var(--red)'};
+    const CUENTA_LABELS = {totem_nube:'Totem Nube',gestion_play:'Gestion Play',validar:'Validar GP',carlos_pussetto:'Carlos Pussetto',validar_cp:'Validar CP'};
+    const color = CUENTA_COLORS[cuentaFiltro]||'var(--text)';
+    const label = CUENTA_LABELS[cuentaFiltro]||cuentaFiltro;
+    html += `<div class="stat-card"><div class="stat-val" style="color:${color};">${activas.length}${pct(activas.length,activasAll.length)}</div><div class="stat-label">${label} — Licencias activas</div></div>`;
+    html += `<div class="stat-card"><div class="stat-val" style="color:${color};">$${fmt(totalARS)}${pct(totalARS,totalAllARS)}</div><div class="stat-label">${label} — ARS mensual</div></div>`;
+    if(totalUSD>0) html += `<div class="stat-card"><div class="stat-val">USD ${fmt(totalUSD)}</div><div class="stat-label">${label} — USD mensual</div></div>`;
+  }
+  document.getElementById('licencias-stats').innerHTML = html;
 }
 
 function renderLicencias(data){
