@@ -1756,7 +1756,7 @@ function filtrarCobranzas(){
   const cuenta = document.getElementById('filtro-cuenta-cob').value;
   const filtered = _cobranzasData.filter(f=>{
     const nombre = f.clientes?.nombre||'';
-    const matchQ = !q || nombre.toLowerCase().includes(q) || (f.cuenta==='validar' && 'validar'.includes(q));
+    const matchQ = !q || nombre.toLowerCase().includes(q) || (f.cuenta==='validar' && 'validar'.includes(q)) || (f.cuenta==='validar_cp' && 'validar cp'.includes(q));
     const matchEst = !est || f.estado===est;
     const matchCuenta = !cuenta || f.cuenta===cuenta;
     return matchQ && matchEst && matchCuenta;
@@ -1792,7 +1792,7 @@ function renderCobranzas(data){
   const ESTADOS = ['borrador','enviada','cobrada','vencida','incobrable'];
   tbody.innerHTML = data.map(f=>`
     <tr>
-      <td><strong>${f.cuenta==='validar'?'VALIDAR (total consolidado)':f.clientes?.nombre||'—'}</strong></td>
+      <td><strong>${f.cuenta==='validar'?'VALIDAR (total consolidado)':f.cuenta==='validar_cp'?'VALIDAR CP (total consolidado)':f.clientes?.nombre||'—'}</strong></td>
       <td><span class="badge ${COB_CUENTA_BADGE[f.cuenta]||'badge-gray'}">${COB_CUENTA_LABELS[f.cuenta]||f.cuenta||'—'}</span></td>
       <td style="font-family:'DM Mono',monospace;font-size:12px;">${f.periodo||'—'}</td>
       <td style="font-size:12px;">${f.numero_factura_externa||'—'}</td>
@@ -2243,6 +2243,15 @@ async function sincronizarCobranzas(periodo){
       const firstClienteId = grupos[validarKeys[0]].cliente_id;
       validarKeys.forEach(k => delete grupos[k]);
       grupos['validar|'+firstClienteId] = { cliente_id: firstClienteId, cuenta: 'validar', monto: totalVal };
+    }
+
+    // Caso especial VALIDAR CP: consolidado en una sola fila
+    const validarCpKeys = Object.keys(grupos).filter(k => k.startsWith('validar_cp|'));
+    if(validarCpKeys.length > 1){
+      const totalVcp = validarCpKeys.reduce((s,k) => s + grupos[k].monto, 0);
+      const firstClienteIdVcp = grupos[validarCpKeys[0]].cliente_id;
+      validarCpKeys.forEach(k => delete grupos[k]);
+      grupos['validar_cp|'+firstClienteIdVcp] = { cliente_id: firstClienteIdVcp, cuenta: 'validar_cp', monto: totalVcp };
     }
 
     // 7. Upsert respetando estados
