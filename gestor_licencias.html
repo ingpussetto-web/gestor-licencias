@@ -1418,29 +1418,29 @@ function renderLicenciasStats(filtered){
     {key:'carlos_pussetto',label:'Carlos Pussetto',   color:'var(--purple)'},
     {key:'validar_cp',     label:'Validar CP',         color:'var(--red)'},
   ];
-  // Bloque de estados — siempre visible
   const totalFiltered = filtered.length;
+  const CUENTA_COLORS = {totem_nube:'var(--accent)',gestion_play:'var(--blue)',validar:'var(--green)',carlos_pussetto:'var(--purple)',validar_cp:'var(--red)'};
+  const CUENTA_LABELS = {totem_nube:'Totem Nube',gestion_play:'Gestion Play',validar:'Validar GP',carlos_pussetto:'Carlos Pussetto',validar_cp:'Validar CP'};
+
+  // Estados secundarios (En Proceso e Inactivas) — siempre visibles
   let html =
-    `<div class="stat-card"><div class="stat-val" style="color:var(--green);">${activasF.length}${pct(activasF.length,totalFiltered)}</div><div class="stat-label">Activas</div></div>`+
-    `<div class="stat-card"><div class="stat-val" style="color:var(--green);font-size:16px;">$${fmt(totalARS)}${pct(totalARS,totalARS+arsInactivas+arsEnProceso)}</div><div class="stat-label">Activas ARS</div></div>`+
     `<div class="stat-card"><div class="stat-val" style="color:var(--amber);">${enProcesoF.length}${pct(enProcesoF.length,totalFiltered)}</div><div class="stat-label">En Proceso</div></div>`+
     `<div class="stat-card"><div class="stat-val" style="color:var(--amber);font-size:16px;">$${fmt(arsEnProceso)}</div><div class="stat-label">En Proceso ARS</div></div>`+
     `<div class="stat-card"><div class="stat-val" style="color:var(--text3);">${inactivasF.length}${pct(inactivasF.length,totalFiltered)}</div><div class="stat-label">Inactivas</div></div>`+
     `<div class="stat-card"><div class="stat-val" style="color:var(--text3);font-size:16px;">$${fmt(arsInactivas)}</div><div class="stat-label">Inactivas ARS</div></div>`;
 
+  // Desglose por cuenta — dinámico según filtro
   if(!cuentaFiltro){
     for(const c of CUENTAS){
-      const ca = activas.filter(l=>l.cuenta===c.key);
+      const ca = activasF.filter(l=>l.cuenta===c.key);
       const ct = ca.filter(l=>l.moneda==='ARS').reduce((s,l)=>s+(l.precio_actual||0),0);
-      html += `<div class="stat-card"><div class="stat-val" style="color:${c.color};">${ca.length}${pct(ca.length,activas.length)}</div><div class="stat-label">${c.label}</div></div>`;
+      html += `<div class="stat-card"><div class="stat-val" style="color:${c.color};">${ca.length}${pct(ca.length,activasF.length)}</div><div class="stat-label">${c.label}</div></div>`;
       html += `<div class="stat-card"><div class="stat-val" style="color:${c.color};">$${fmt(ct)}${pct(ct,totalARS)}</div><div class="stat-label">${c.label} ARS</div></div>`;
     }
   } else {
-    const CUENTA_COLORS = {totem_nube:'var(--accent)',gestion_play:'var(--blue)',validar:'var(--green)',carlos_pussetto:'var(--purple)',validar_cp:'var(--red)'};
-    const CUENTA_LABELS = {totem_nube:'Totem Nube',gestion_play:'Gestion Play',validar:'Validar GP',carlos_pussetto:'Carlos Pussetto',validar_cp:'Validar CP'};
     const color = CUENTA_COLORS[cuentaFiltro]||'var(--text)';
     const label = CUENTA_LABELS[cuentaFiltro]||cuentaFiltro;
-    html += `<div class="stat-card"><div class="stat-val" style="color:${color};">${activas.length}${pct(activas.length,activasAll.length)}</div><div class="stat-label">${label} — Licencias activas</div></div>`;
+    html += `<div class="stat-card"><div class="stat-val" style="color:${color};">${activasF.length}${pct(activasF.length,activasAll.length)}</div><div class="stat-label">${label} — Activas</div></div>`;
     html += `<div class="stat-card"><div class="stat-val" style="color:${color};">$${fmt(totalARS)}${pct(totalARS,totalAllARS)}</div><div class="stat-label">${label} — ARS mensual</div></div>`;
     if(totalUSD>0) html += `<div class="stat-card"><div class="stat-val">USD ${fmt(totalUSD)}</div><div class="stat-label">${label} — USD mensual</div></div>`;
   }
