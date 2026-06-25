@@ -1121,9 +1121,16 @@ function filtrarClientes(){
 
 function renderClientesStats(filtered){
   const total = filtered.length;
-  const nActivos = filtered.filter(c=>!c.baja && c.activo).length;
-  const nInactivos = filtered.filter(c=>!c.baja && !c.activo).length;
-  const nBaja = filtered.filter(c=>c.baja).length;
+  // Actualizar conteos en el dropdown de estado
+  const nActivos   = _clientesData.filter(c=>!c.baja && c.activo).length;
+  const nInactivos = _clientesData.filter(c=>!c.baja && !c.activo).length;
+  const nBaja      = _clientesData.filter(c=>c.baja).length;
+  const sel = document.getElementById('filtro-estado-cliente');
+  sel.options[0].text = 'Todos';
+  sel.options[1].text = `Activos (${nActivos})`;
+  sel.options[2].text = `Inactivos (${nInactivos})`;
+  sel.options[3].text = `Dados de Baja (${nBaja})`;
+
   const CUENTAS = [
     {key:'totem_nube',     label:'Totem Nube',      color:'var(--accent)'},
     {key:'gestion_play',   label:'Gestion Play',     color:'var(--blue)'},
@@ -1131,11 +1138,7 @@ function renderClientesStats(filtered){
     {key:'carlos_pussetto',label:'Carlos Pussetto',  color:'var(--purple)'},
     {key:'validar_cp',     label:'Validar CP',        color:'var(--red)'},
   ];
-  let html =
-    `<div class="stat-card"><div class="stat-val">${total}</div><div class="stat-label">Total clientes</div></div>`+
-    `<div class="stat-card"><div class="stat-val" style="color:var(--green);">${nActivos}</div><div class="stat-label">Activos</div></div>`+
-    `<div class="stat-card"><div class="stat-val" style="color:var(--text3);">${nInactivos}</div><div class="stat-label">Inactivos</div></div>`+
-    `<div class="stat-card"><div class="stat-val" style="color:var(--red);">${nBaja}</div><div class="stat-label">Dados de Baja</div></div>`;
+  let html = `<div class="stat-card"><div class="stat-val">${total}</div><div class="stat-label">Total clientes</div></div>`;
   for(const c of CUENTAS){
     const n = filtered.filter(x=>_licCuentaMap[x.id]?.has(c.key)).length;
     html += `<div class="stat-card"><div class="stat-val" style="color:${c.color};">${n}</div><div class="stat-label">${c.label}</div></div>`;
