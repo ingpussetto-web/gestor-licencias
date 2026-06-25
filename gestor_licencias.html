@@ -1425,12 +1425,21 @@ function renderLicenciasStats(filtered){
   const CUENTA_COLORS = {totem_nube:'var(--accent)',gestion_play:'var(--blue)',validar:'var(--green)',carlos_pussetto:'var(--purple)',validar_cp:'var(--red)'};
   const CUENTA_LABELS = {totem_nube:'Totem Nube',gestion_play:'Gestion Play',validar:'Validar GP',carlos_pussetto:'Carlos Pussetto',validar_cp:'Validar CP'};
 
-  // Estados secundarios (En Proceso e Inactivas) — siempre visibles
-  let html =
-    `<div class="stat-card"><div class="stat-val" style="color:var(--amber);">${enProcesoF.length}${pct(enProcesoF.length,totalFiltered)}</div><div class="stat-label">En Proceso</div></div>`+
-    `<div class="stat-card"><div class="stat-val" style="color:var(--amber);font-size:16px;">$${fmt(arsEnProceso)}</div><div class="stat-label">En Proceso ARS</div></div>`+
-    `<div class="stat-card"><div class="stat-val" style="color:var(--text3);">${inactivasF.length}${pct(inactivasF.length,totalFiltered)}</div><div class="stat-label">Inactivas</div></div>`+
-    `<div class="stat-card"><div class="stat-val" style="color:var(--text3);font-size:16px;">$${fmt(arsInactivas)}</div><div class="stat-label">Inactivas ARS</div></div>`;
+  // Actualizar conteos en el dropdown de estado
+  const nActivas    = _licenciasData.filter(l=>l.estado==='activa').length;
+  const nEnProceso  = _licenciasData.filter(l=>l.estado==='en_proceso').length;
+  const nInactivas  = _licenciasData.filter(l=>l.estado==='inactiva').length;
+  const nDadaBaja   = _licenciasData.filter(l=>l.estado==='dada_de_baja').length;
+  const arsEP       = _licenciasData.filter(l=>l.estado==='en_proceso'&&l.moneda==='ARS').reduce((s,l)=>s+(l.precio_actual||0),0);
+  const arsIN       = _licenciasData.filter(l=>l.estado==='inactiva'&&l.moneda==='ARS').reduce((s,l)=>s+(l.precio_actual||0),0);
+  const selEst = document.getElementById('filtro-estado-lic');
+  selEst.options[0].text = `Activas (${nActivas})`;
+  selEst.options[1].text = `Todas`;
+  selEst.options[2].text = `Inactivas (${nInactivas} · $${fmt(arsIN)})`;
+  selEst.options[3].text = `En Proceso (${nEnProceso} · $${fmt(arsEP)})`;
+  selEst.options[4].text = `Dadas de Baja (${nDadaBaja})`;
+
+  let html = '';
 
   // Desglose por cuenta — dinámico según filtro
   if(!cuentaFiltro){
