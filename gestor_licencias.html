@@ -1477,7 +1477,7 @@ function onMsAll(key, cb){
   document.querySelectorAll('.ms-'+key+'-cb').forEach(c => c.checked = false);
   document.getElementById('ms-'+key+'-all').checked = true;
   updateMsLabel(key);
-  filtrarLicencias();
+  key.startsWith('cob-') ? filtrarCobranzas() : filtrarLicencias();
 }
 function onMsCb(key, cb){
   if(cb.checked) _msState[key].add(cb.value);
@@ -1485,7 +1485,7 @@ function onMsCb(key, cb){
   const allEl = document.getElementById('ms-'+key+'-all');
   if(allEl) allEl.checked = (_msState[key].size === 0);
   updateMsLabel(key);
-  filtrarLicencias();
+  key.startsWith('cob-') ? filtrarCobranzas() : filtrarLicencias();
 }
 function updateMsLabel(key){
   const sel = _msState[key];
