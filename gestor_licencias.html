@@ -596,22 +596,38 @@ tr:hover td { background: var(--bg2); }
       <div class="table-wrap">
         <div class="table-filters">
           <input class="search-input" type="text" id="search-cobranzas" placeholder="🔍 Buscar cliente..." oninput="filtrarCobranzas()">
-          <select class="form-select" style="width:160px;" id="filtro-cuenta-cob" onchange="filtrarCobranzas()">
-            <option value="">Todas las carteras</option>
-            <option value="totem_nube">Totem Nube</option>
-            <option value="gestion_play">Gestion Play</option>
-            <option value="validar">Validar GP</option>
-            <option value="carlos_pussetto">Carlos Pussetto</option>
-            <option value="validar_cp">Validar CP</option>
-          </select>
-          <select class="form-select" style="width:160px;" id="filtro-estado-cob" onchange="filtrarCobranzas()">
-            <option value="">Todos los estados</option>
-            <option value="borrador">Borrador</option>
-            <option value="enviada">Enviada</option>
-            <option value="cobrada">Cobrada</option>
-            <option value="vencida">Vencida</option>
-            <option value="incobrable">Incobrable</option>
-          </select>
+          <!-- Cartera -->
+          <div class="ms-wrap">
+            <button class="ms-btn" id="ms-cob-cuenta-btn" onclick="toggleMs('cob-cuenta')">
+              <span id="ms-cob-cuenta-label">Todas las carteras</span>
+              <span style="font-size:10px;color:var(--text3);">▾</span>
+            </button>
+            <div class="ms-panel" id="ms-cob-cuenta-panel">
+              <label class="ms-item"><input type="checkbox" id="ms-cob-cuenta-all" checked onchange="onMsAll('cob-cuenta',this)"> Todas las carteras</label>
+              <div class="ms-divider"></div>
+              <label class="ms-item"><input type="checkbox" class="ms-cob-cuenta-cb" value="totem_nube" onchange="onMsCb('cob-cuenta',this)"> Totem Nube</label>
+              <label class="ms-item"><input type="checkbox" class="ms-cob-cuenta-cb" value="gestion_play" onchange="onMsCb('cob-cuenta',this)"> Gestion Play</label>
+              <label class="ms-item"><input type="checkbox" class="ms-cob-cuenta-cb" value="validar" onchange="onMsCb('cob-cuenta',this)"> Validar GP</label>
+              <label class="ms-item"><input type="checkbox" class="ms-cob-cuenta-cb" value="carlos_pussetto" onchange="onMsCb('cob-cuenta',this)"> Carlos Pussetto</label>
+              <label class="ms-item"><input type="checkbox" class="ms-cob-cuenta-cb" value="validar_cp" onchange="onMsCb('cob-cuenta',this)"> Validar CP</label>
+            </div>
+          </div>
+          <!-- Estado cobranza -->
+          <div class="ms-wrap">
+            <button class="ms-btn" id="ms-cob-estado-btn" onclick="toggleMs('cob-estado')">
+              <span id="ms-cob-estado-label">Todos los estados</span>
+              <span style="font-size:10px;color:var(--text3);">▾</span>
+            </button>
+            <div class="ms-panel" id="ms-cob-estado-panel">
+              <label class="ms-item"><input type="checkbox" id="ms-cob-estado-all" checked onchange="onMsAll('cob-estado',this)"> Todos los estados</label>
+              <div class="ms-divider"></div>
+              <label class="ms-item"><input type="checkbox" class="ms-cob-estado-cb" value="borrador" onchange="onMsCb('cob-estado',this)"><span style="color:var(--text3);font-size:10px;">●</span> Borrador</label>
+              <label class="ms-item"><input type="checkbox" class="ms-cob-estado-cb" value="enviada" onchange="onMsCb('cob-estado',this)"><span style="color:var(--blue);font-size:10px;">●</span> Enviada</label>
+              <label class="ms-item"><input type="checkbox" class="ms-cob-estado-cb" value="cobrada" onchange="onMsCb('cob-estado',this)"><span style="color:var(--green);font-size:10px;">●</span> Cobrada</label>
+              <label class="ms-item"><input type="checkbox" class="ms-cob-estado-cb" value="vencida" onchange="onMsCb('cob-estado',this)"><span style="color:var(--red);font-size:10px;">●</span> Vencida</label>
+              <label class="ms-item"><input type="checkbox" class="ms-cob-estado-cb" value="incobrable" onchange="onMsCb('cob-estado',this)"><span style="color:var(--red);font-size:10px;">●</span> Incobrable</label>
+            </div>
+          </div>
         </div>
         <table>
           <thead>
@@ -1424,16 +1440,20 @@ async function loadLicencias(){
 
 // ── MULTI-SELECT FILTERS ─────────────────────────────────────────
 const _msState = {
-  tipo:   new Set(),
-  cuenta: new Set(),
-  estado: new Set(['activa'])
+  tipo:        new Set(),
+  cuenta:      new Set(),
+  estado:      new Set(['activa']),
+  'cob-cuenta': new Set(),
+  'cob-estado': new Set()
 };
 const MS_LABELS = {
   tipo:   {agro:'Agro', autogestion:'Autogestión', cuos_atencion:'CUOS Atención', cuos_vigilancia:'CUOS Vigilancia', turnero:'Turnero', publicidad:'Publicidad', ia:'Agente IA'},
   cuenta: {totem_nube:'Totem Nube', gestion_play:'Gestion Play', validar:'Validar GP', carlos_pussetto:'Carlos Pussetto', validar_cp:'Validar CP'},
-  estado: {activa:'Activas', inactiva:'Inactivas', en_proceso:'En Proceso', dada_de_baja:'Dadas de Baja'}
+  estado: {activa:'Activas', inactiva:'Inactivas', en_proceso:'En Proceso', dada_de_baja:'Dadas de Baja'},
+  'cob-cuenta': {totem_nube:'Totem Nube', gestion_play:'Gestion Play', validar:'Validar GP', carlos_pussetto:'Carlos Pussetto', validar_cp:'Validar CP'},
+  'cob-estado': {borrador:'Borrador', enviada:'Enviada', cobrada:'Cobrada', vencida:'Vencida', incobrable:'Incobrable'}
 };
-const MS_DEFAULTS = {tipo:'Todos los tipos', cuenta:'Todas las cuentas', estado:'Todas'};
+const MS_DEFAULTS = {tipo:'Todos los tipos', cuenta:'Todas las cuentas', estado:'Todas', 'cob-cuenta':'Todas las carteras', 'cob-estado':'Todos los estados'};
 
 function toggleMs(key){
   const panel = document.getElementById('ms-'+key+'-panel');
@@ -1909,14 +1929,14 @@ async function loadCobranzas(){
 }
 
 function filtrarCobranzas(){
-  const q = document.getElementById('search-cobranzas').value.toLowerCase();
-  const est = document.getElementById('filtro-estado-cob').value;
-  const cuenta = document.getElementById('filtro-cuenta-cob').value;
+  const q       = document.getElementById('search-cobranzas').value.toLowerCase();
+  const estados = getMsValues('cob-estado');
+  const cuentas = getMsValues('cob-cuenta');
   const filtered = _cobranzasData.filter(f=>{
     const nombre = f.clientes?.nombre||'';
-    const matchQ = !q || nombre.toLowerCase().includes(q) || (f.cuenta==='validar' && 'validar'.includes(q)) || (f.cuenta==='validar_cp' && 'validar cp'.includes(q));
-    const matchEst = !est || f.estado===est;
-    const matchCuenta = !cuenta || f.cuenta===cuenta;
+    const matchQ      = !q || nombre.toLowerCase().includes(q) || (f.cuenta==='validar' && 'validar'.includes(q)) || (f.cuenta==='validar_cp' && 'validar cp'.includes(q));
+    const matchEst    = estados.length === 0 || estados.includes(f.estado);
+    const matchCuenta = cuentas.length === 0 || cuentas.includes(f.cuenta);
     return matchQ && matchEst && matchCuenta;
   });
   renderCobranzas(filtered);
