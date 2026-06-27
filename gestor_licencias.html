@@ -623,6 +623,7 @@ tr:hover td { background: var(--bg2); }
               <div class="ms-divider"></div>
               <label class="ms-item"><input type="checkbox" class="ms-cob-estado-cb" value="borrador" onchange="onMsCb('cob-estado',this)"><span style="color:var(--text3);font-size:10px;">●</span> Borrador</label>
               <label class="ms-item"><input type="checkbox" class="ms-cob-estado-cb" value="enviada" onchange="onMsCb('cob-estado',this)"><span style="color:var(--blue);font-size:10px;">●</span> Enviada</label>
+              <label class="ms-item"><input type="checkbox" class="ms-cob-estado-cb" value="cobrado_parcial" onchange="onMsCb('cob-estado',this)"><span style="color:var(--amber);font-size:10px;">●</span> Cobrado parcial</label>
               <label class="ms-item"><input type="checkbox" class="ms-cob-estado-cb" value="cobrada" onchange="onMsCb('cob-estado',this)"><span style="color:var(--green);font-size:10px;">●</span> Cobrada</label>
               <label class="ms-item"><input type="checkbox" class="ms-cob-estado-cb" value="vencida" onchange="onMsCb('cob-estado',this)"><span style="color:var(--red);font-size:10px;">●</span> Vencida</label>
               <label class="ms-item"><input type="checkbox" class="ms-cob-estado-cb" value="incobrable" onchange="onMsCb('cob-estado',this)"><span style="color:var(--red);font-size:10px;">●</span> Incobrable</label>
@@ -880,6 +881,7 @@ tr:hover td { background: var(--bg2); }
         <select class="form-select" id="cob-estado">
           <option value="borrador">Borrador</option>
           <option value="enviada">Enviada</option>
+          <option value="cobrado_parcial">Cobrado parcial</option>
           <option value="cobrada">Cobrada</option>
           <option value="vencida">Vencida</option>
           <option value="incobrable">Incobrable</option>
@@ -1079,12 +1081,12 @@ const TIPO_LABELS = {
 const ESTADO_BADGE = {
   activa:'badge-green', inactiva:'badge-gray', dada_de_baja:'badge-red', en_proceso:'badge-amber',
   borrador:'badge-gray', enviada:'badge-blue',
-  cobrada:'badge-green', vencida:'badge-red', incobrable:'badge-red'
+  cobrada:'badge-green', cobrado_parcial:'badge-amber', vencida:'badge-red', incobrable:'badge-red'
 };
 const ESTADO_LABEL = {
   activa:'Activa', inactiva:'Inactiva', dada_de_baja:'Dada de Baja', en_proceso:'En Proceso',
   borrador:'Borrador', enviada:'Enviada',
-  cobrada:'Cobrada', vencida:'Vencida', incobrable:'Incobrable'
+  cobrada:'Cobrada', cobrado_parcial:'Cobrado parcial', vencida:'Vencida', incobrable:'Incobrable'
 };
 
 // ── NAVEGACIÓN ───────────────────────────────────────────────
@@ -1478,7 +1480,7 @@ const MS_LABELS = {
   cuenta: {totem_nube:'Totem Nube', gestion_play:'Gestion Play', validar:'Validar GP', carlos_pussetto:'Carlos Pussetto', validar_cp:'Validar CP'},
   estado: {activa:'Activas', inactiva:'Inactivas', en_proceso:'En Proceso', dada_de_baja:'Dadas de Baja'},
   'cob-cuenta': {totem_nube:'Totem Nube', gestion_play:'Gestion Play', validar:'Validar GP', carlos_pussetto:'Carlos Pussetto', validar_cp:'Validar CP'},
-  'cob-estado': {borrador:'Borrador', enviada:'Enviada', cobrada:'Cobrada', vencida:'Vencida', incobrable:'Incobrable'}
+  'cob-estado': {borrador:'Borrador', enviada:'Enviada', cobrado_parcial:'Cobrado parcial', cobrada:'Cobrada', vencida:'Vencida', incobrable:'Incobrable'}
 };
 const MS_DEFAULTS = {tipo:'Todos los tipos', cuenta:'Todas las cuentas', estado:'Todas', 'cob-cuenta':'Todas las carteras', 'cob-estado':'Todos los estados'};
 
@@ -1994,7 +1996,7 @@ function actualizarStatsCobranzas(data){
 }
 
 function estadoSelectColor(estado){
-  const map = {borrador:'var(--text3)', enviada:'var(--blue)', cobrada:'var(--green)', vencida:'var(--red)', incobrable:'var(--red)'};
+  const map = {borrador:'var(--text3)', enviada:'var(--blue)', cobrada:'var(--green)', cobrado_parcial:'var(--amber)', vencida:'var(--red)', incobrable:'var(--red)'};
   return map[estado]||'var(--text3)';
 }
 
@@ -2003,7 +2005,7 @@ function renderCobranzas(data){
   if(!data.length){ tbody.innerHTML='<tr><td colspan="9"><div class="empty"><div class="empty-icon">💰</div>Sin cobranzas para este período</div></td></tr>'; return; }
   const COB_CUENTA_LABELS = {totem_nube:'Totem Nube', gestion_play:'Gestion Play', validar:'Validar GP', carlos_pussetto:'Carlos Pussetto', validar_cp:'Validar CP'};
   const COB_CUENTA_BADGE = {totem_nube:'badge-amber', gestion_play:'badge-blue', validar:'badge-green', carlos_pussetto:'badge-purple', validar_cp:'badge-red'};
-  const ESTADOS = ['borrador','enviada','cobrada','vencida','incobrable'];
+  const ESTADOS = ['borrador','enviada','cobrado_parcial','cobrada','vencida','incobrable'];
   tbody.innerHTML = data.map(f=>`
     <tr>
       <td><strong>${f.cuenta==='validar'?'VALIDAR (total consolidado)':f.cuenta==='validar_cp'?'VALIDAR CP (total consolidado)':f.clientes?.nombre||'—'}</strong></td>
@@ -2080,6 +2082,10 @@ function renderPagosList(f){
   } else {
     badge.innerHTML = `<span style="color:var(--text3);">Sin pagos · Total: $${fmt(f.monto_total)}</span>`;
   }
+  // Pre-llenar campo monto con saldo restante (editable)
+  const pagoMontoEl = document.getElementById('pago-monto');
+  if(pagoMontoEl && saldo > 0) pagoMontoEl.value = saldo.toFixed(2);
+  else if(pagoMontoEl) pagoMontoEl.value = '';
   // Lista pagos
   const list = document.getElementById('cob-pagos-list');
   if(!pagos.length){
@@ -2111,12 +2117,19 @@ async function agregarPago(){
     const pagosActualizados = await api(`pagos?factura_id=eq.${facturaId}&order=fecha_pago.asc`);
     const f = _cobranzasData.find(x=>x.id===facturaId);
     if(f){ f.pagos = pagosActualizados||[]; }
-    // Auto-cambiar estado si saldo = 0
+    // Auto-cambiar estado según saldo
     const totalPagado = (pagosActualizados||[]).reduce((s,p)=>s+(p.monto||0),0);
-    if(totalPagado >= (f?.monto_total||0) && f?.estado !== 'cobrada'){
+    const montoTotal = f?.monto_total||0;
+    if(totalPagado >= montoTotal && f?.estado !== 'cobrada'){
       await api('facturas?id=eq.'+facturaId,'PATCH',{ estado:'cobrada', fecha_cobro: fecha });
       if(f){ f.estado='cobrada'; f.fecha_cobro=fecha; }
+      document.getElementById('cob-estado').value='cobrada';
       toast('✅ Pago registrado — factura cobrada');
+    } else if(totalPagado > 0 && totalPagado < montoTotal && f?.estado !== 'cobrado_parcial'){
+      await api('facturas?id=eq.'+facturaId,'PATCH',{ estado:'cobrado_parcial' });
+      if(f){ f.estado='cobrado_parcial'; }
+      document.getElementById('cob-estado').value='cobrado_parcial';
+      toast('✅ Pago parcial registrado');
     } else {
       toast('✅ Pago registrado');
     }
@@ -2556,7 +2569,7 @@ async function sincronizarCobranzas(periodo){
     }
 
     // 7. Upsert respetando estados
-    const ESTADOS_BLOQUEADOS = new Set(['enviada','cobrada','vencida','incobrable']);
+    const ESTADOS_BLOQUEADOS = new Set(['enviada','cobrada','cobrado_parcial','vencida','incobrable']);
     let creados = 0, actualizados = 0;
 
     for(const [key, g] of Object.entries(grupos)){
