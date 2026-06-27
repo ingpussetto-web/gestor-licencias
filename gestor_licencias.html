@@ -908,6 +908,33 @@ tr:hover td { background: var(--bg2); }
       <label class="form-label">Notas</label>
       <textarea class="form-input" id="cob-notas" rows="2" style="resize:vertical;"></textarea>
     </div>
+    <!-- Sección pagos — solo visible al editar -->
+    <div id="cob-pagos-section" style="display:none;margin-top:16px;border-top:1px solid var(--border);padding-top:14px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <div style="font-weight:600;font-size:13px;">Pagos registrados</div>
+        <div id="cob-saldo-badge" style="font-size:12px;font-family:'DM Mono',monospace;font-weight:700;"></div>
+      </div>
+      <div id="cob-pagos-list" style="margin-bottom:12px;"></div>
+      <!-- Nuevo pago -->
+      <div style="background:var(--bg2);border-radius:8px;padding:10px 12px;">
+        <div style="font-size:11px;font-weight:600;color:var(--text3);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em;">Registrar pago</div>
+        <div class="form-row" style="margin-bottom:8px;">
+          <div class="form-group">
+            <label class="form-label">Monto *</label>
+            <input class="form-input" type="number" id="pago-monto" min="0" step="0.01" placeholder="0,00">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Fecha *</label>
+            <input class="form-input" type="date" id="pago-fecha">
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:8px;">
+          <label class="form-label">Notas</label>
+          <input class="form-input" type="text" id="pago-notas" placeholder="Ej: Transferencia 12345">
+        </div>
+        <button class="btn primary" style="width:100%;" onclick="agregarPago()">+ Registrar pago</button>
+      </div>
+    </div>
     <div class="modal-actions">
       <button class="btn" onclick="cerrarModal('modal-cobranza')">Cancelar</button>
       <button class="btn primary" onclick="guardarCobranza()">Guardar</button>
@@ -1914,7 +1941,7 @@ async function loadCobranzas(){
     // Auto-sincronizar cobranzas antes de mostrar
     await sincronizarCobranzas(periodo);
 
-    const data = await api(`facturas?periodo=eq.${periodo}&select=id,cliente_id,periodo,numero_factura_externa,monto_total,estado,fecha_vencimiento,fecha_cobro,canal_envio,notas,cuenta,clientes(nombre)&order=cuenta.asc,clientes(nombre).asc`);
+    const data = await api(`facturas?periodo=eq.${periodo}&select=id,cliente_id,periodo,numero_factura_externa,monto_total,estado,fecha_vencimiento,fecha_cobro,canal_envio,notas,cuenta,clientes(nombre),pagos(id,monto,fecha_pago,notas)&order=cuenta.asc,clientes(nombre).asc`);
     _cobranzasData = data||[];
 
     actualizarStatsCobranzas(_cobranzasData);
@@ -1943,16 +1970,25 @@ function filtrarCobranzas(){
   actualizarStatsCobranzas(filtered);
 }
 
+function cobradoFact(f){
+  // Si tiene pagos registrados → usar suma de pagos; si no y está cobrada → usar monto_total
+  const ps = (f.pagos||[]).reduce((s,p)=>s+(p.monto||0),0);
+  if(ps>0) return ps;
+  if(f.estado==='cobrada') return f.monto_total||0;
+  return 0;
+}
+function saldoFact(f){ return Math.max(0,(f.monto_total||0)-cobradoFact(f)); }
+
 function actualizarStatsCobranzas(data){
-  const cobradas = data.filter(f=>f.estado==='cobrada');
-  const pendientes = data.filter(f=>['enviada','borrador'].includes(f.estado));
-  const vencidas = data.filter(f=>f.estado==='vencida');
-  const totalCobrado = cobradas.reduce((s,f)=>s+(f.monto_total||0),0);
-  const totalPendiente = pendientes.reduce((s,f)=>s+(f.monto_total||0),0);
+  const vencidas   = data.filter(f=>f.estado==='vencida');
+  const totalCobrado   = data.reduce((s,f)=>s+cobradoFact(f),0);
+  const totalPendiente = data.filter(f=>f.estado!=='incobrable').reduce((s,f)=>s+saldoFact(f),0);
+  const nPendientes = data.filter(f=>f.estado!=='incobrable'&&saldoFact(f)>0).length;
+  const nCobrados   = data.filter(f=>cobradoFact(f)>0).length;
   document.getElementById('cobranzas-stats').innerHTML =
-    `<div class="stat-card"><div class="stat-val" style="color:var(--green);">$${fmt(totalCobrado)}</div><div class="stat-label">Cobrado neto (${cobradas.length})</div></div>`+
+    `<div class="stat-card"><div class="stat-val" style="color:var(--green);">$${fmt(totalCobrado)}</div><div class="stat-label">Cobrado neto (${nCobrados})</div></div>`+
     `<div class="stat-card"><div class="stat-val" style="color:var(--green);font-size:16px;">$${fmt(totalCobrado*1.21)}</div><div class="stat-label">Cobrado c/IVA</div></div>`+
-    `<div class="stat-card"><div class="stat-val" style="color:var(--amber);">$${fmt(totalPendiente)}</div><div class="stat-label">Pendiente neto (${pendientes.length})</div></div>`+
+    `<div class="stat-card"><div class="stat-val" style="color:var(--amber);">$${fmt(totalPendiente)}</div><div class="stat-label">Pendiente neto (${nPendientes})</div></div>`+
     `<div class="stat-card"><div class="stat-val" style="color:var(--amber);font-size:16px;">$${fmt(totalPendiente*1.21)}</div><div class="stat-label">Pendiente c/IVA</div></div>`+
     `<div class="stat-card"><div class="stat-val" style="color:var(--red);">${vencidas.length}</div><div class="stat-label">Vencidas</div></div>`;
 }
@@ -2002,6 +2038,7 @@ function abrirModalCobranza(){
   document.getElementById('cob-periodo').value=document.getElementById('filtro-periodo').value;
   document.getElementById('cob-vencimiento').value='';
   document.getElementById('cob-cobro').value='';
+  document.getElementById('cob-pagos-section').style.display='none';
   actualizarBrutoCob();
   abrirModal('modal-cobranza');
 }
@@ -2021,7 +2058,85 @@ async function editarCobranza(id){
   document.getElementById('cob-cobro').value = f.fecha_cobro||'';
   document.getElementById('cob-notas').value = f.notas||'';
   actualizarBrutoCob();
+  // Sección pagos
+  document.getElementById('cob-pagos-section').style.display = 'block';
+  document.getElementById('pago-fecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('pago-monto').value = '';
+  document.getElementById('pago-notas').value = '';
+  renderPagosList(f);
   abrirModal('modal-cobranza');
+}
+
+function renderPagosList(f){
+  const pagos = f.pagos||[];
+  const totalPagado = pagos.reduce((s,p)=>s+(p.monto||0),0);
+  const saldo = (f.monto_total||0) - totalPagado;
+  // Badge saldo
+  const badge = document.getElementById('cob-saldo-badge');
+  if(saldo<=0){
+    badge.innerHTML = `<span style="color:var(--green);">✓ Pagado completo</span>`;
+  } else if(totalPagado>0){
+    badge.innerHTML = `<span style="color:var(--amber);">Cobrado: $${fmt(totalPagado)} · Saldo: $${fmt(saldo)}</span>`;
+  } else {
+    badge.innerHTML = `<span style="color:var(--text3);">Sin pagos · Total: $${fmt(f.monto_total)}</span>`;
+  }
+  // Lista pagos
+  const list = document.getElementById('cob-pagos-list');
+  if(!pagos.length){
+    list.innerHTML = `<div style="font-size:12px;color:var(--text3);padding:6px 0;">Sin pagos registrados</div>`;
+    return;
+  }
+  list.innerHTML = pagos.map(p=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);">
+      <div style="flex:1;">
+        <span style="font-family:'DM Mono',monospace;font-weight:600;color:var(--green);">$${fmt(p.monto)}</span>
+        <span style="font-size:11px;color:var(--text3);margin-left:8px;">${fmtFecha(p.fecha_pago)}</span>
+        ${p.notas?`<span style="font-size:11px;color:var(--text2);margin-left:8px;">· ${p.notas}</span>`:''}
+      </div>
+      <button onclick="eliminarPago(${p.id},${f.id})" style="border:none;background:none;color:var(--red);cursor:pointer;font-size:14px;padding:2px 6px;" title="Eliminar">✕</button>
+    </div>`).join('');
+}
+
+async function agregarPago(){
+  const facturaId = _editCobranzaId;
+  if(!facturaId) return;
+  const monto = parseFloat(document.getElementById('pago-monto').value);
+  const fecha = document.getElementById('pago-fecha').value;
+  if(!monto||monto<=0){ toast('Ingresá un monto válido'); return; }
+  if(!fecha){ toast('Ingresá la fecha del pago'); return; }
+  const notas = document.getElementById('pago-notas').value.trim()||null;
+  try{
+    await api('pagos','POST',{ factura_id: facturaId, monto, fecha_pago: fecha, notas });
+    // Recargar pagos de esta factura
+    const pagosActualizados = await api(`pagos?factura_id=eq.${facturaId}&order=fecha_pago.asc`);
+    const f = _cobranzasData.find(x=>x.id===facturaId);
+    if(f){ f.pagos = pagosActualizados||[]; }
+    // Auto-cambiar estado si saldo = 0
+    const totalPagado = (pagosActualizados||[]).reduce((s,p)=>s+(p.monto||0),0);
+    if(totalPagado >= (f?.monto_total||0) && f?.estado !== 'cobrada'){
+      await api('facturas?id=eq.'+facturaId,'PATCH',{ estado:'cobrada', fecha_cobro: fecha });
+      if(f){ f.estado='cobrada'; f.fecha_cobro=fecha; }
+      toast('✅ Pago registrado — factura cobrada');
+    } else {
+      toast('✅ Pago registrado');
+    }
+    document.getElementById('pago-monto').value='';
+    document.getElementById('pago-notas').value='';
+    if(f) renderPagosList(f);
+    actualizarStatsCobranzas(_cobranzasData);
+  }catch(e){ toast('Error: '+e.message); }
+}
+
+async function eliminarPago(pagoId, facturaId){
+  if(!confirm('¿Eliminar este pago?')) return;
+  try{
+    await api('pagos?id=eq.'+pagoId,'DELETE');
+    const pagosActualizados = await api(`pagos?factura_id=eq.${facturaId}&order=fecha_pago.asc`);
+    const f = _cobranzasData.find(x=>x.id===facturaId);
+    if(f){ f.pagos = pagosActualizados||[]; renderPagosList(f); }
+    actualizarStatsCobranzas(_cobranzasData);
+    toast('Pago eliminado');
+  }catch(e){ toast('Error: '+e.message); }
 }
 async function guardarCobranza(){
   const cliente_id = document.getElementById('cob-cliente').value;
