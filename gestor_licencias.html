@@ -2311,23 +2311,30 @@ async function sincronizarCobranzas(periodo){
       );
     });
 
-    // Caso especial VALIDAR: consolidado en una sola fila (cliente_id null o primer cliente)
-    // Reagrupar validar en una sola entrada
+    // Caso especial VALIDAR: consolidado en una sola fila
+    // Usa siempre el cliente_id de la factura existente (si hay) o el menor cliente_id
     const validarKeys = Object.keys(grupos).filter(k => k.startsWith('validar|'));
-    if(validarKeys.length > 1){
+    if(validarKeys.length >= 1){
       const totalVal = validarKeys.reduce((s,k) => s + grupos[k].monto, 0);
-      const firstClienteId = grupos[validarKeys[0]].cliente_id;
+      // Preferir cliente_id de factura ya existente para mantener consistencia
+      const existenteValidar = (existentes||[]).find(f => f.cuenta === 'validar');
+      const anchorIdVal = existenteValidar
+        ? existenteValidar.cliente_id
+        : Math.min(...validarKeys.map(k => grupos[k].cliente_id));
       validarKeys.forEach(k => delete grupos[k]);
-      grupos['validar|'+firstClienteId] = { cliente_id: firstClienteId, cuenta: 'validar', monto: totalVal };
+      grupos['validar|'+anchorIdVal] = { cliente_id: anchorIdVal, cuenta: 'validar', monto: totalVal };
     }
 
     // Caso especial VALIDAR CP: consolidado en una sola fila
     const validarCpKeys = Object.keys(grupos).filter(k => k.startsWith('validar_cp|'));
-    if(validarCpKeys.length > 1){
+    if(validarCpKeys.length >= 1){
       const totalVcp = validarCpKeys.reduce((s,k) => s + grupos[k].monto, 0);
-      const firstClienteIdVcp = grupos[validarCpKeys[0]].cliente_id;
+      const existenteVcp = (existentes||[]).find(f => f.cuenta === 'validar_cp');
+      const anchorIdVcp = existenteVcp
+        ? existenteVcp.cliente_id
+        : Math.min(...validarCpKeys.map(k => grupos[k].cliente_id));
       validarCpKeys.forEach(k => delete grupos[k]);
-      grupos['validar_cp|'+firstClienteIdVcp] = { cliente_id: firstClienteIdVcp, cuenta: 'validar_cp', monto: totalVcp };
+      grupos['validar_cp|'+anchorIdVcp] = { cliente_id: anchorIdVcp, cuenta: 'validar_cp', monto: totalVcp };
     }
 
     // 7. Upsert respetando estados
