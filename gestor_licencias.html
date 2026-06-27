@@ -1408,8 +1408,8 @@ function renderLicenciasStats(filtered){
   const totalUSD    = heroBase.filter(l=>l.moneda==='USD').reduce((s,l)=>s+(l.precio_actual||0),0);
   const arsInactivas = inactivasF.filter(l=>l.moneda==='ARS').reduce((s,l)=>s+(l.precio_actual||0),0);
   const arsEnProceso = enProcesoF.filter(l=>l.moneda==='ARS').reduce((s,l)=>s+(l.precio_actual||0),0);
-  const ESTADO_HERO  = {activa:'Licencias activas', inactiva:'Licencias inactivas', en_proceso:'En Proceso', dada_de_baja:'Dadas de Baja', '':'Licencias activas'};
-  const heroLabel    = ESTADO_HERO[estadoFiltro] || 'Licencias';
+  const ESTADO_HERO  = {activa:'Licencias activas', inactiva:'Licencias inactivas', en_proceso:'En Proceso', dada_de_baja:'Dadas de Baja', '':'Total licencias'};
+  const heroLabel    = ESTADO_HERO[estadoFiltro] ?? 'Licencias';
 
   // Hero: refleja siempre el filtro de estado activo
   const heroEl = document.getElementById('licencias-hero');
@@ -2287,7 +2287,8 @@ async function sincronizarCobranzas(periodo){
 
     const licsDelPeriodo = licencias.filter(l => {
       if(!l.fecha_alta) return true;
-      return new Date(l.fecha_alta+'T12:00:00') <= periodoDate;
+      // Comparar solo YYYY-MM para evitar problemas de hora/timezone
+      return l.fecha_alta.substring(0,7) <= periodo;
     });
 
     // 5. Cobranzas existentes del período con sus estados
