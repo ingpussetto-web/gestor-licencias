@@ -700,7 +700,7 @@ tr:hover td { background: var(--bg2); }
           <input class="form-input" type="text" id="cfg-url" placeholder="https://xxxx.supabase.co">
         </div>
         <div class="form-group">
-          <label class="form-label">Anon Key</label>
+          <label class="form-label">API Key <span style="font-size:11px;font-weight:400;color:var(--text-muted)">(service_role para acceso completo)</span></label>
           <input class="form-input" type="password" id="cfg-key" placeholder="eyJ...">
         </div>
         <button class="btn primary" onclick="guardarConfig()">Guardar y conectar</button>
@@ -1943,7 +1943,8 @@ function generarPeriodos(){
   const sel = document.getElementById('filtro-periodo');
   const hoy = new Date();
   let opts = '';
-  for(let i=0;i<12;i++){
+  // 2 meses futuros + mes actual + 11 meses anteriores = 14 períodos
+  for(let i=-2;i<12;i++){
     const d = new Date(hoy.getFullYear(), hoy.getMonth()-i, 1);
     const val = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
     const label = d.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
