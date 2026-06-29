@@ -1942,7 +1942,7 @@ let _cobranzasData = [];
 function generarPeriodos(){
   const sel = document.getElementById('filtro-periodo');
   const hoy = new Date();
-  let opts = '';
+  let opts = '<option value="__vencidos__">🔴 Todos los meses (Vencidos)</option>';
   // 2 meses futuros + mes actual + 11 meses anteriores = 14 períodos
   for(let i=-2;i<12;i++){
     const d = new Date(hoy.getFullYear(), hoy.getMonth()-i, 1);
@@ -1951,11 +1951,20 @@ function generarPeriodos(){
     opts += `<option value="${val}"${i===0?' selected':''}>${label.charAt(0).toUpperCase()+label.slice(1)}</option>`;
   }
   sel.innerHTML = opts;
+  // Seleccionar mes actual por defecto (no la opción vencidos)
+  sel.value = `${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}`;
 }
 
 async function loadCobranzas(){
   const tbody = document.getElementById('cobranzas-tbody');
   const periodo = document.getElementById('filtro-periodo').value;
+
+  // Vista especial: todos los vencidos
+  if(periodo === '__vencidos__'){
+    await loadDeudaVencida();
+    return;
+  }
+
   tbody.innerHTML = '<tr><td colspan="9"><div class="loading"><span class="spinner"></span>Cargando...</div></td></tr>';
   try{
     // Auto-sincronizar cobranzas antes de mostrar
@@ -2446,6 +2455,48 @@ async function guardarPrecio(){
 //   - Calcula el monto correcto del período aplicando índices reales o implícitos
 //   - Si no existe cobranza → crea en borrador
 //   - Si existe en borrador y el monto difiere → actualiza
+// ── AUTO-VENCIMIENTO ─────────────────────────────────────────
+// Facturas de meses anteriores no cobradas → vencida
+async function marcarVencidas(){
+  const hoy = new Date();
+  const mesActualStr = `${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}`;
+  const paraVencer = await api(
+    `facturas?periodo=lt.${mesActualStr}&estado=in.(borrador,enviada,cobrado_parcial)&select=id`
+  ).catch(()=>[]);
+  if(paraVencer?.length){
+    await Promise.all(paraVencer.map(f =>
+      api('facturas?id=eq.'+f.id, 'PATCH', { estado: 'vencida' })
+    ));
+  }
+}
+
+// ── VISTA TODOS LOS VENCIDOS ─────────────────────────────────
+async function loadDeudaVencida(){
+  const tbody = document.getElementById('cobranzas-tbody');
+  tbody.innerHTML = '<tr><td colspan="9"><div class="loading"><span class="spinner"></span>Cargando vencidos...</div></td></tr>';
+  try{
+    await marcarVencidas();
+    const data = await api(
+      `facturas?estado=eq.vencida&select=id,cliente_id,periodo,numero_factura_externa,monto_total,estado,fecha_vencimiento,fecha_cobro,canal_envio,notas,cuenta,clientes(nombre),pagos(id,monto,fecha_pago,notas)&order=clientes(nombre).asc,periodo.asc`
+    );
+    _cobranzasData = data||[];
+
+    // Stats especiales para vista deuda
+    const totalSaldo = _cobranzasData.reduce((s,f)=>s+saldoFact(f),0);
+    const clientes   = new Set(_cobranzasData.map(f=>f.cliente_id||f.cuenta));
+    const periodos   = [...new Set(_cobranzasData.map(f=>f.periodo))].sort();
+    const masAntiguo = periodos[0] ? fmtFecha(periodos[0]+'-01') : '—';
+    document.getElementById('cobranzas-stats').innerHTML =
+      `<div class="stat-card"><div class="stat-val" style="color:var(--red);">$${fmt(totalSaldo)}</div><div class="stat-label">Total vencido neto</div></div>`+
+      `<div class="stat-card"><div class="stat-val" style="color:var(--red);font-size:16px;">$${fmt(totalSaldo*1.21)}</div><div class="stat-label">Total vencido c/IVA</div></div>`+
+      `<div class="stat-card"><div class="stat-val" style="color:var(--amber);">${_cobranzasData.length}</div><div class="stat-label">Facturas vencidas</div></div>`+
+      `<div class="stat-card"><div class="stat-val" style="color:var(--amber);">${clientes.size}</div><div class="stat-label">Clientes con deuda</div></div>`+
+      `<div class="stat-card"><div class="stat-val" style="color:var(--text3);font-size:13px;">${masAntiguo}</div><div class="stat-label">Deuda más antigua</div></div>`;
+
+    filtrarCobranzas();
+  }catch(e){ tbody.innerHTML=`<tr><td colspan="9"><div class="empty">Error: ${e.message}</div></td></tr>`; }
+}
+
 //   - Si existe en enviada/cobrada/vencida/incobrable → no toca
 async function sincronizarCobranzas(periodo){
   const syncEl = document.getElementById('sync-indicator');
@@ -2457,17 +2508,8 @@ async function sincronizarCobranzas(periodo){
     const ultimoDia        = new Date(year, month, 0).getDate();
     const fechaVencimiento = `${year}-${String(month).padStart(2,'0')}-${ultimoDia}`;
 
-    // 0. Vencimiento automático: facturas en 'enviada' con fecha_vencimiento < hoy → 'vencida'
-    //    Se aplica sobre TODOS los períodos, no solo el que se está viendo
-    const hoyStr = new Date().toISOString().split('T')[0];
-    const enviadas = await api(
-      `facturas?estado=eq.enviada&fecha_vencimiento=lt.${hoyStr}&select=id`
-    ).catch(()=>[]);
-    if(enviadas?.length){
-      await Promise.all(enviadas.map(f =>
-        api('facturas?id=eq.'+f.id, 'PATCH', { estado: 'vencida' })
-      ));
-    }
+    // 0. Vencimiento automático (delegado a marcarVencidas)
+    await marcarVencidas();
 
     // 1. Índices registrados en actualizaciones_precio
     const ajustes = await api('actualizaciones_precio?order=periodo.asc').catch(()=>[]);
