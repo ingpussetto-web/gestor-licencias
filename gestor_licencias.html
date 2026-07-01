@@ -1181,9 +1181,11 @@ async function loadClientes(){
     (lics||[]).forEach(l=>{
       if(l.estado==='activa'){
         licCount[l.cliente_id] = (licCount[l.cliente_id]||0)+1;
-        if(!licCuentaMap[l.cliente_id]) licCuentaMap[l.cliente_id] = new Set();
-        if(l.cuenta) licCuentaMap[l.cliente_id].add(l.cuenta);
       }
+      // Mapear cuenta para TODAS las licencias (no solo activas)
+      // así detectamos la cuenta aunque la licencia esté en_proceso o inactiva
+      if(!licCuentaMap[l.cliente_id]) licCuentaMap[l.cliente_id] = new Set();
+      if(l.cuenta) licCuentaMap[l.cliente_id].add(l.cuenta);
     });
     
     _licCuentaMap = licCuentaMap;
@@ -1196,7 +1198,13 @@ async function loadClientes(){
 function renderClientes(data, licCount){
   const tbody = document.getElementById('clientes-tbody');
   if(!data.length){ tbody.innerHTML='<tr><td colspan="7"><div class="empty"><div class="empty-icon">👥</div>Sin clientes cargados</div></td></tr>'; return; }
-  const esTotemNube = c => _licCuentaMap[c.id]?.has('totem_nube') && !_licCuentaMap[c.id]?.has('gestion_play') && !_licCuentaMap[c.id]?.has('validar') && !_licCuentaMap[c.id]?.has('carlos_pussetto') && !_licCuentaMap[c.id]?.has('validar_cp');
+  // Ocultar contacto si el cliente NO tiene licencias en otras cuentas (gestion_play, validar, etc.)
+  // Esto cubre: clientes solo-totemNube, clientes sin licencia aún (nuevos)
+  const esTotemNube = c => {
+    const cuentas = _licCuentaMap[c.id];
+    if(!cuentas) return true; // sin licencias → totem_nube por defecto → ocultar
+    return !cuentas.has('gestion_play') && !cuentas.has('validar') && !cuentas.has('carlos_pussetto') && !cuentas.has('validar_cp');
+  };
   tbody.innerHTML = data.map(c=>{
     const ocultarContacto = MODO_PROVEEDOR && esTotemNube(c);
     return `
