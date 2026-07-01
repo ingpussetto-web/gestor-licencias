@@ -1297,6 +1297,23 @@ tr:hover td { background: var(--bg2); }
   </div>
 </div>
 
+<!-- MODAL ELIMINAR CLIENTE -->
+<div class="modal-overlay" id="modal-eliminar-cliente">
+  <div class="modal" style="width:460px;">
+    <div class="modal-title" style="color:var(--red);">⚠ Eliminar cliente</div>
+    <div id="eliminar-cliente-nombre" style="font-size:15px;font-weight:600;margin-bottom:16px;"></div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:12px;">Esta acción eliminará en cadena:</div>
+    <div id="eliminar-cliente-checklist" style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;"></div>
+    <div style="font-size:12px;color:var(--red);background:rgba(200,50,50,0.07);border:1px solid rgba(200,50,50,0.25);border-radius:8px;padding:10px 14px;margin-bottom:4px;">
+      Esta operación es irreversible.
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="cerrarModal('modal-eliminar-cliente')">Cancelar</button>
+      <button class="btn primary" id="btn-confirmar-eliminar" style="background:var(--red);border-color:var(--red);" onclick="confirmarEliminarCliente()">Eliminar todo</button>
+    </div>
+  </div>
+</div>
+
 <div id="banner-migracion">
   <div class="banner-header">
     <span class="banner-title">🔄 Novedades desde Totem Nube</span>
@@ -1411,14 +1428,62 @@ let _clientesData = [];
 let _licCuentaMap = {};
 let _licCount = {};
 
+let _eliminarClienteId = null;
+
 async function eliminarCliente(id){
-  if(!confirm('¿Eliminar este cliente?\n\nEsto también eliminará todas sus licencias.')) return;
+  _eliminarClienteId = id;
+  const btn = document.getElementById('btn-confirmar-eliminar');
+  if(btn) btn.disabled = false;
+
+  // Fetch counts en paralelo
+  const [lics, facts, cliente] = await Promise.all([
+    api('licencias?cliente_id=eq.'+id+'&select=id').catch(()=>[]),
+    api('facturas?cliente_id=eq.'+id+'&select=id').catch(()=>[]),
+    api('clientes?id=eq.'+id+'&select=nombre').catch(()=>[])
+  ]);
+
+  const nombre = cliente?.[0]?.nombre || '(sin nombre)';
+  document.getElementById('eliminar-cliente-nombre').textContent = nombre;
+
+  const items = [
+    { label: 'Licencias asociadas', count: lics?.length || 0 },
+    { label: 'Cobranzas asociadas', count: facts?.length || 0 }
+  ];
+  document.getElementById('eliminar-cliente-checklist').innerHTML = items.map(i =>
+    `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;">
+      <span style="font-size:16px;">🗑</span>
+      <span style="font-size:13px;color:var(--text);">${i.label}</span>
+      <span style="margin-left:auto;font-family:'DM Mono',monospace;font-size:12px;color:var(--red);font-weight:600;">${i.count} registro${i.count!==1?'s':''}</span>
+    </div>`
+  ).join('');
+
+  document.getElementById('modal-eliminar-cliente').classList.add('open');
+}
+
+async function confirmarEliminarCliente(){
+  if(!_eliminarClienteId) return;
+  const btn = document.getElementById('btn-confirmar-eliminar');
+  if(btn){ btn.disabled = true; btn.textContent = 'Eliminando...'; }
   try{
-    await api('licencias?cliente_id=eq.'+id,'DELETE');
-    await api('clientes?id=eq.'+id,'DELETE');
-    toast('Cliente eliminado');
+    // 1. Pagos de las facturas del cliente
+    const facts = await api('facturas?cliente_id=eq.'+_eliminarClienteId+'&select=id').catch(()=>[]);
+    if(facts?.length){
+      await Promise.all(facts.map(f => api('pagos?factura_id=eq.'+f.id,'DELETE').catch(()=>{})));
+    }
+    // 2. Facturas
+    await api('facturas?cliente_id=eq.'+_eliminarClienteId,'DELETE').catch(()=>{});
+    // 3. Licencias
+    await api('licencias?cliente_id=eq.'+_eliminarClienteId,'DELETE').catch(()=>{});
+    // 4. Cliente
+    await api('clientes?id=eq.'+_eliminarClienteId,'DELETE');
+    cerrarModal('modal-eliminar-cliente');
+    toast('✅ Cliente eliminado');
+    _eliminarClienteId = null;
     loadClientes();
-  }catch(e){ toast('Error: '+e.message); }
+  }catch(e){
+    toast('Error: '+e.message);
+    if(btn){ btn.disabled = false; btn.textContent = 'Eliminar todo'; }
+  }
 }
 
 async function eliminarLicencia(id){
