@@ -2404,8 +2404,8 @@ function generarPeriodos(){
   const sel = document.getElementById('filtro-periodo');
   const hoy = new Date();
   let opts = '<option value="__vencidos__">🔴 Todos los meses (Vencidos)</option>';
-  // 2 meses futuros + mes actual + 11 meses anteriores = 14 períodos
-  for(let i=-2;i<12;i++){
+  // 1 mes futuro + mes actual + 11 meses anteriores = 13 períodos
+  for(let i=-1;i<12;i++){
     const d = new Date(hoy.getFullYear(), hoy.getMonth()-i, 1);
     const val = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
     const label = d.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
@@ -3272,13 +3272,15 @@ async function loadDashboard(){
       {key:'validar_cp',      label:'Validar CP',      color:'rgba(210,50,50,0.8)'},
     ];
 
-    // Últimos 12 meses
+    // Períodos desde EVOL_INICIO hasta mes actual
     const periodos12 = [];
     for(let i=11;i>=0;i--){
       const d=new Date(hoy.getFullYear(),hoy.getMonth()-i,1);
       periodos12.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
     }
-    const labeles12 = periodos12.map(p=>{
+    // Solo desde EVOL_INICIO en adelante
+    const periodos12Filt = periodos12.filter(p => p >= EVOL_INICIO);
+    const labeles12 = periodos12Filt.map(p=>{
       const [y,m]=p.split('-');
       const d=new Date(Number(y),Number(m)-1,1);
       return d.toLocaleDateString('es-AR',{month:'short',year:'2-digit'});
@@ -3293,7 +3295,7 @@ async function loadDashboard(){
 
     const datasets = CUENTAS_DASH.map(c=>({
       label: c.label,
-      data:  periodos12.map(p=>(mapaFact[p]?.[c.key]||0)),
+      data:  periodos12Filt.map(p=>(mapaFact[p]?.[c.key]||0)),
       backgroundColor: c.color,
       stack: 'mrr',
       borderRadius: 3,
@@ -3302,7 +3304,7 @@ async function loadDashboard(){
     // Línea total
     datasets.push({
       label: 'Total',
-      data:  periodos12.map(p=>Object.values(mapaFact[p]||{}).reduce((s,v)=>s+v,0)),
+      data:  periodos12Filt.map(p=>Object.values(mapaFact[p]||{}).reduce((s,v)=>s+v,0)),
       type:  'line',
       borderColor: 'rgba(255,255,255,0.7)',
       backgroundColor: 'transparent',
