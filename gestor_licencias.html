@@ -1809,11 +1809,15 @@ const CUENTA_COLORS_EVOL = {
 
 function toggleEvolucion(modo){
   const wrap = document.getElementById('evolucion-wrap');
-  // Si viene con modo: cambiar modo (siempre abrir si no está abierto)
   if(modo){
+    const wasOpen    = _evolucionAbierto;
     const cambioModo = _evolucionModo !== modo;
+    if(wasOpen && !cambioModo){
+      _evolucionAbierto = false;
+      wrap.style.display = 'none';
+      return;
+    }
     _evolucionModo = modo;
-    // Actualizar estilos de botones
     const btnFact = document.getElementById('btn-evol-fact');
     const btnLics = document.getElementById('btn-evol-lics');
     if(btnFact && btnLics){
@@ -1824,14 +1828,13 @@ function toggleEvolucion(modo){
       btnLics.style.color      = modo==='licencias'   ? '#fff' : 'var(--text3)';
       btnLics.style.fontWeight = modo==='licencias'   ? '600' : '400';
     }
-    if(!_evolucionAbierto){
+    if(!wasOpen){
       wrap.style.display = 'block';
       _evolucionAbierto = true;
     }
-    if(cambioModo || !_evolucionAbierto) loadEvolucion();
+    if(!wasOpen || cambioModo) loadEvolucion();
     return;
   }
-  // Sin modo: toggle visibilidad
   _evolucionAbierto = !_evolucionAbierto;
   wrap.style.display = _evolucionAbierto ? 'block' : 'none';
   if(_evolucionAbierto) loadEvolucion();
