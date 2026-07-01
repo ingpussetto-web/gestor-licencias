@@ -416,7 +416,69 @@ tr:hover td { background: var(--bg2); }
 .banner-items { margin-top:8px; display:flex; flex-direction:column; gap:4px; }
 .banner-item { font-size:11px; color:#ccc; padding:4px 8px; background:rgba(255,255,255,0.04); border-radius:6px; }
 .banner-ver { margin-top:10px; font-size:11px; color:#5dba5d; cursor:pointer; text-decoration:underline; }
+/* ── DASHBOARD ─────────────────────────────────────────────── */
+.dash-grid        { display:grid; gap:14px; }
+.dash-row-4       { grid-template-columns:repeat(4,1fr); }
+.dash-row-3       { grid-template-columns:repeat(3,1fr); }
+.dash-row-2       { grid-template-columns:repeat(2,1fr); }
+.dash-row-2-1     { grid-template-columns:2fr 1fr; }
+.kpi-card         { background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:6px;position:relative;overflow:hidden; }
+.kpi-card::before { content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--kpi-color,var(--accent)); }
+.kpi-label        { font-size:11px;color:var(--text3);font-weight:600;letter-spacing:.04em;text-transform:uppercase; }
+.kpi-val          { font-family:'DM Mono',monospace;font-size:26px;font-weight:700;color:var(--kpi-color,var(--text));line-height:1; }
+.kpi-sub          { font-size:11px;color:var(--text3); }
+.kpi-var          { font-size:12px;font-weight:600; }
+.kpi-var.up       { color:var(--green); }
+.kpi-var.down     { color:var(--red); }
+.alert-card       { background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:border-color .15s; }
+.alert-card:hover { border-color:var(--kpi-color,var(--accent)); }
+.alert-icon       { font-size:28px;line-height:1; }
+.alert-body       { flex:1; }
+.alert-val        { font-size:20px;font-weight:700;color:var(--kpi-color,var(--text));font-family:'DM Mono',monospace; }
+.alert-label      { font-size:11px;color:var(--text3);margin-top:2px; }
+.chart-card       { background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px; }
+.chart-card-title { font-size:13px;font-weight:600;color:var(--text);margin-bottom:14px; }
+.top-table        { width:100%;border-collapse:collapse;font-size:12px; }
+.top-table th     { font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;padding:5px 10px;text-align:left; }
+.top-table td     { padding:8px 10px;border-top:1px solid var(--border); }
+.dash-section-title { font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin:18px 0 10px; }
+@media(max-width:900px){
+  .dash-row-4,.dash-row-3 { grid-template-columns:repeat(2,1fr); }
+  .dash-row-2,.dash-row-2-1 { grid-template-columns:1fr; }
+}
+
+/* ── DASHBOARD ─────────────────────────────────────────────── */
+.dash-grid        { display:grid; gap:14px; }
+.dash-row-4       { grid-template-columns:repeat(4,1fr); }
+.dash-row-3       { grid-template-columns:repeat(3,1fr); }
+.dash-row-2       { grid-template-columns:repeat(2,1fr); }
+.dash-row-2-1     { grid-template-columns:2fr 1fr; }
+.kpi-card         { background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:6px;position:relative;overflow:hidden; }
+.kpi-card::before { content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--kpi-color,var(--accent)); }
+.kpi-label        { font-size:11px;color:var(--text3);font-weight:600;letter-spacing:.04em;text-transform:uppercase; }
+.kpi-val          { font-family:'DM Mono',monospace;font-size:26px;font-weight:700;color:var(--kpi-color,var(--text));line-height:1; }
+.kpi-sub          { font-size:11px;color:var(--text3); }
+.kpi-var          { font-size:12px;font-weight:600; }
+.kpi-var.up       { color:var(--green); }
+.kpi-var.down     { color:var(--red); }
+.alert-card       { background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:border-color .15s; }
+.alert-card:hover { border-color:var(--kpi-color,var(--accent)); }
+.alert-icon       { font-size:28px;line-height:1; }
+.alert-body       { flex:1; }
+.alert-val        { font-size:20px;font-weight:700;color:var(--kpi-color,var(--text));font-family:'DM Mono',monospace; }
+.alert-label      { font-size:11px;color:var(--text3);margin-top:2px; }
+.chart-card       { background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px; }
+.chart-card-title { font-size:13px;font-weight:600;color:var(--text);margin-bottom:14px; }
+.top-table        { width:100%;border-collapse:collapse;font-size:12px; }
+.top-table th     { font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;padding:5px 10px;text-align:left; }
+.top-table td     { padding:8px 10px;border-top:1px solid var(--border); }
+.dash-section-title { font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin:18px 0 10px; }
+@media(max-width:900px){
+  .dash-row-4,.dash-row-3 { grid-template-columns:repeat(2,1fr); }
+  .dash-row-2,.dash-row-2-1 { grid-template-columns:1fr; }
+}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -434,6 +496,9 @@ tr:hover td { background: var(--bg2); }
   <!-- SIDEBAR -->
   <div class="sidebar">
     <div class="nav-section">Gestión</div>
+    <div class="nav-item" id="nav-dashboard" onclick="showPage('dashboard')">
+      <span>📊</span> Dashboard
+    </div>
     <div class="nav-item active" id="nav-clientes" onclick="showPage('clientes')">
       <span>👥</span> Clientes
     </div>
@@ -454,6 +519,164 @@ tr:hover td { background: var(--bg2); }
 
   <!-- MAIN -->
   <main>
+
+    <!-- ── DASHBOARD ── -->
+    <div class="page" id="page-dashboard">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Dashboard</div>
+          <div class="page-subtitle" id="dash-subtitle">Tablero de comando</div>
+        </div>
+        <button class="btn" onclick="loadDashboard()" style="font-size:12px;">↻ Actualizar</button>
+      </div>
+
+      <!-- Bloque 1: KPIs financieros -->
+      <div class="dash-section-title">💰 Salud financiera del mes</div>
+      <div class="dash-grid dash-row-4" id="dash-kpis">
+        <div class="kpi-card" style="--kpi-color:var(--accent);"><div class="kpi-label">MRR del mes</div><div class="kpi-val" id="d-mrr">—</div><div class="kpi-sub" id="d-mrr-var"></div></div>
+        <div class="kpi-card" style="--kpi-color:var(--green);"><div class="kpi-label">Cobrado</div><div class="kpi-val" id="d-cobrado">—</div><div class="kpi-sub" id="d-cobrado-pct"></div></div>
+        <div class="kpi-card" style="--kpi-color:var(--amber);"><div class="kpi-label">Pendiente neto</div><div class="kpi-val" id="d-pendiente">—</div><div class="kpi-sub" id="d-pendiente-sub"></div></div>
+        <div class="kpi-card" style="--kpi-color:var(--blue);"><div class="kpi-label">Total c/IVA 21%</div><div class="kpi-val" id="d-iva">—</div><div class="kpi-sub">Facturación bruta</div></div>
+      </div>
+
+      <!-- Bloque 2: Alertas -->
+      <div class="dash-section-title">🚨 Alertas operativas</div>
+      <div class="dash-grid dash-row-3">
+        <div class="alert-card" style="--kpi-color:var(--red);" onclick="irAVencidas()">
+          <div class="alert-icon">⚠️</div>
+          <div class="alert-body">
+            <div class="alert-val" id="d-alert-vencidas">—</div>
+            <div class="alert-label">Facturas vencidas · <span id="d-alert-vencidas-monto" style="font-weight:600;"></span></div>
+          </div>
+          <div style="font-size:11px;color:var(--text3);">Ver →</div>
+        </div>
+        <div class="alert-card" style="--kpi-color:var(--amber);">
+          <div class="alert-icon">⏳</div>
+          <div class="alert-body">
+            <div class="alert-val" id="d-alert-parciales">—</div>
+            <div class="alert-label">Cobros parciales abiertos · <span id="d-alert-parciales-monto" style="font-weight:600;"></span></div>
+          </div>
+        </div>
+        <div class="alert-card" style="--kpi-color:var(--blue);">
+          <div class="alert-icon">🔄</div>
+          <div class="alert-body">
+            <div class="alert-val" id="d-alert-proceso">—</div>
+            <div class="alert-label">Licencias en proceso de alta</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bloque 3: Portfolio -->
+      <div class="dash-section-title">📋 Portfolio de licencias</div>
+      <div class="dash-grid dash-row-4">
+        <div class="kpi-card" style="--kpi-color:var(--green);"><div class="kpi-label">Licencias activas</div><div class="kpi-val" id="d-lic-activas">—</div><div class="kpi-sub">Total vigentes</div></div>
+        <div class="kpi-card" style="--kpi-color:var(--green);"><div class="kpi-label">Altas del mes</div><div class="kpi-val" id="d-altas">—</div><div class="kpi-sub" id="d-altas-sub"></div></div>
+        <div class="kpi-card" style="--kpi-color:var(--red);"><div class="kpi-label">Bajas del mes</div><div class="kpi-val" id="d-bajas">—</div><div class="kpi-sub" id="d-bajas-sub"></div></div>
+        <div class="kpi-card" style="--kpi-color:var(--accent);"><div class="kpi-label">Churn neto</div><div class="kpi-val" id="d-churn">—</div><div class="kpi-sub">Altas − Bajas</div></div>
+      </div>
+
+      <!-- Bloque 4 + 5: Gráficos -->
+      <div class="dash-section-title">📈 Evolución y distribución</div>
+      <div class="dash-grid dash-row-2-1">
+        <div class="chart-card">
+          <div class="chart-card-title">MRR últimos 12 meses por cuenta</div>
+          <canvas id="chart-mrr" height="200"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="chart-card-title">Distribución del mes actual</div>
+          <canvas id="chart-dist" height="200"></canvas>
+        </div>
+      </div>
+
+      <!-- Bloque 6: Top clientes -->
+      <div class="dash-section-title">🏆 Top 10 clientes por MRR</div>
+      <div class="chart-card">
+        <table class="top-table" id="dash-top-table">
+          <thead><tr><th>#</th><th>Cliente</th><th>Cuenta</th><th style="text-align:right;">MRR neto</th><th style="text-align:right;">c/IVA</th><th style="text-align:right;">Estado</th></tr></thead>
+          <tbody id="dash-top-body"><tr><td colspan="6" style="padding:20px;text-align:center;color:var(--text3);">Cargando...</td></tr></tbody>
+        </table>
+      </div>
+      <div style="height:32px;"></div>
+    </div>
+
+    <!-- ── DASHBOARD ── -->
+    <div class="page" id="page-dashboard">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Dashboard</div>
+          <div class="page-subtitle" id="dash-subtitle">Tablero de comando</div>
+        </div>
+        <button class="btn" onclick="loadDashboard()" style="font-size:12px;">↻ Actualizar</button>
+      </div>
+
+      <!-- Bloque 1: KPIs financieros -->
+      <div class="dash-section-title">💰 Salud financiera del mes</div>
+      <div class="dash-grid dash-row-4" id="dash-kpis">
+        <div class="kpi-card" style="--kpi-color:var(--accent);"><div class="kpi-label">MRR del mes</div><div class="kpi-val" id="d-mrr">—</div><div class="kpi-sub" id="d-mrr-var"></div></div>
+        <div class="kpi-card" style="--kpi-color:var(--green);"><div class="kpi-label">Cobrado</div><div class="kpi-val" id="d-cobrado">—</div><div class="kpi-sub" id="d-cobrado-pct"></div></div>
+        <div class="kpi-card" style="--kpi-color:var(--amber);"><div class="kpi-label">Pendiente neto</div><div class="kpi-val" id="d-pendiente">—</div><div class="kpi-sub" id="d-pendiente-sub"></div></div>
+        <div class="kpi-card" style="--kpi-color:var(--blue);"><div class="kpi-label">Total c/IVA 21%</div><div class="kpi-val" id="d-iva">—</div><div class="kpi-sub">Facturación bruta</div></div>
+      </div>
+
+      <!-- Bloque 2: Alertas -->
+      <div class="dash-section-title">🚨 Alertas operativas</div>
+      <div class="dash-grid dash-row-3">
+        <div class="alert-card" style="--kpi-color:var(--red);" onclick="irAVencidas()">
+          <div class="alert-icon">⚠️</div>
+          <div class="alert-body">
+            <div class="alert-val" id="d-alert-vencidas">—</div>
+            <div class="alert-label">Facturas vencidas · <span id="d-alert-vencidas-monto" style="font-weight:600;"></span></div>
+          </div>
+          <div style="font-size:11px;color:var(--text3);">Ver →</div>
+        </div>
+        <div class="alert-card" style="--kpi-color:var(--amber);">
+          <div class="alert-icon">⏳</div>
+          <div class="alert-body">
+            <div class="alert-val" id="d-alert-parciales">—</div>
+            <div class="alert-label">Cobros parciales abiertos · <span id="d-alert-parciales-monto" style="font-weight:600;"></span></div>
+          </div>
+        </div>
+        <div class="alert-card" style="--kpi-color:var(--blue);">
+          <div class="alert-icon">🔄</div>
+          <div class="alert-body">
+            <div class="alert-val" id="d-alert-proceso">—</div>
+            <div class="alert-label">Licencias en proceso de alta</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bloque 3: Portfolio -->
+      <div class="dash-section-title">📋 Portfolio de licencias</div>
+      <div class="dash-grid dash-row-4">
+        <div class="kpi-card" style="--kpi-color:var(--green);"><div class="kpi-label">Licencias activas</div><div class="kpi-val" id="d-lic-activas">—</div><div class="kpi-sub">Total vigentes</div></div>
+        <div class="kpi-card" style="--kpi-color:var(--green);"><div class="kpi-label">Altas del mes</div><div class="kpi-val" id="d-altas">—</div><div class="kpi-sub" id="d-altas-sub"></div></div>
+        <div class="kpi-card" style="--kpi-color:var(--red);"><div class="kpi-label">Bajas del mes</div><div class="kpi-val" id="d-bajas">—</div><div class="kpi-sub" id="d-bajas-sub"></div></div>
+        <div class="kpi-card" style="--kpi-color:var(--accent);"><div class="kpi-label">Churn neto</div><div class="kpi-val" id="d-churn">—</div><div class="kpi-sub">Altas − Bajas</div></div>
+      </div>
+
+      <!-- Bloque 4 + 5: Gráficos -->
+      <div class="dash-section-title">📈 Evolución y distribución</div>
+      <div class="dash-grid dash-row-2-1">
+        <div class="chart-card">
+          <div class="chart-card-title">MRR últimos 12 meses por cuenta</div>
+          <canvas id="chart-mrr" height="200"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="chart-card-title">Distribución del mes actual</div>
+          <canvas id="chart-dist" height="200"></canvas>
+        </div>
+      </div>
+
+      <!-- Bloque 6: Top clientes -->
+      <div class="dash-section-title">🏆 Top 10 clientes por MRR</div>
+      <div class="chart-card">
+        <table class="top-table" id="dash-top-table">
+          <thead><tr><th>#</th><th>Cliente</th><th>Cuenta</th><th style="text-align:right;">MRR neto</th><th style="text-align:right;">c/IVA</th><th style="text-align:right;">Estado</th></tr></thead>
+          <tbody id="dash-top-body"><tr><td colspan="6" style="padding:20px;text-align:center;color:var(--text3);">Cargando...</td></tr></tbody>
+        </table>
+      </div>
+      <div style="height:32px;"></div>
+    </div>
 
     <!-- ── CLIENTES ── -->
     <div class="page active" id="page-clientes">
@@ -1141,6 +1364,7 @@ function showPage(id){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   document.getElementById('nav-'+id)?.classList.add('active');
+  if(id==='dashboard') loadDashboard();
   if(id==='clientes') loadClientes();
   if(id==='licencias') loadLicencias();
   if(id==='cobranzas') loadCobranzas();
@@ -2832,6 +3056,445 @@ function cerrarBanner(){
   document.getElementById('banner-migracion').style.display = 'none';
 }
 
+// ── DASHBOARD ────────────────────────────────────────────────
+let _chartMrr  = null;
+let _chartDist = null;
+
+function irAVencidas(){
+  showPage('cobranzas');
+  setTimeout(()=>{
+    const sel = document.getElementById('filtro-periodo');
+    if(sel){ sel.value='__vencidos__'; loadCobranzas(); }
+  }, 300);
+}
+
+async function loadDashboard(){
+  const hoy = new Date();
+  const mesActual = `${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}`;
+  const mesPrev   = (() => { const d=new Date(hoy.getFullYear(),hoy.getMonth()-1,1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; })();
+  const mesStr    = hoy.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
+  const el = document.getElementById('dash-subtitle');
+  if(el) el.textContent = 'Actualizado · ' + hoy.toLocaleDateString('es-AR',{day:'2-digit',month:'long',year:'numeric'});
+
+  try{
+    // ── Cargar datos en paralelo ──────────────────────────────
+    const [facturas, licencias] = await Promise.all([
+      api('facturas?select=id,periodo,cuenta,monto_total,estado,cliente_id,clientes(nombre),pagos(monto)&order=periodo.desc'),
+      api('licencias?select=id,estado,cuenta,precio_actual,moneda,fecha_alta,tipo,clientes(nombre),cliente_id')
+    ]);
+
+    const facts = facturas||[];
+    const lics  = licencias||[];
+
+    // ── BLOQUE 1: KPIs financieros ───────────────────────────
+    const facMes  = facts.filter(f=>f.periodo===mesActual);
+    const facPrev = facts.filter(f=>f.periodo===mesPrev);
+
+    const mrr      = facMes.reduce((s,f)=>s+(f.monto_total||0),0);
+    const mrrPrev  = facPrev.reduce((s,f)=>s+(f.monto_total||0),0);
+    const mrrVar   = mrrPrev ? ((mrr-mrrPrev)/mrrPrev*100) : null;
+
+    const cobrado  = facMes.reduce((s,f)=>s+cobradoFact(f),0);
+    const cobPct   = mrr ? (cobrado/mrr*100).toFixed(1) : 0;
+    const pendiente= facMes.filter(f=>f.estado!=='incobrable').reduce((s,f)=>s+saldoFact(f),0);
+    const nPend    = facMes.filter(f=>saldoFact(f)>0&&f.estado!=='incobrable').length;
+
+    document.getElementById('d-mrr').textContent        = '$'+fmt(mrr);
+    document.getElementById('d-cobrado').textContent    = '$'+fmt(cobrado);
+    document.getElementById('d-pendiente').textContent  = '$'+fmt(pendiente);
+    document.getElementById('d-iva').textContent        = '$'+fmt(mrr*1.21);
+    document.getElementById('d-cobrado-pct').textContent= cobPct+'% del MRR cobrado';
+    document.getElementById('d-pendiente-sub').textContent= nPend+' factura'+(nPend!==1?'s':'')+' sin cobrar';
+
+    if(mrrVar !== null){
+      const varEl = document.getElementById('d-mrr-var');
+      const sign  = mrrVar>=0?'+':'';
+      varEl.innerHTML = `<span class="kpi-var ${mrrVar>=0?'up':'down'}">${sign}${mrrVar.toFixed(1)}% vs mes anterior</span>`;
+    }
+
+    // ── BLOQUE 2: Alertas ────────────────────────────────────
+    const vencidas    = facts.filter(f=>f.estado==='vencida');
+    const parciales   = facts.filter(f=>f.estado==='cobrado_parcial');
+    const enProceso   = lics.filter(l=>l.estado==='en_proceso');
+
+    const montoVenc   = vencidas.reduce((s,f)=>s+saldoFact(f),0);
+    const montoParcial= parciales.reduce((s,f)=>s+saldoFact(f),0);
+
+    document.getElementById('d-alert-vencidas').textContent        = vencidas.length;
+    document.getElementById('d-alert-vencidas-monto').textContent  = '$'+fmt(montoVenc);
+    document.getElementById('d-alert-parciales').textContent       = parciales.length;
+    document.getElementById('d-alert-parciales-monto').textContent = '$'+fmt(montoParcial)+' saldo';
+    document.getElementById('d-alert-proceso').textContent         = enProceso.length;
+
+    // ── BLOQUE 3: Portfolio ──────────────────────────────────
+    const activas  = lics.filter(l=>l.estado==='activa');
+    const mesIni   = mesActual+'-01';
+    const mesFinD  = new Date(hoy.getFullYear(),hoy.getMonth()+1,0);
+    const mesFin   = mesActual+'-'+String(mesFinD.getDate()).padStart(2,'0');
+
+    const altas    = lics.filter(l=>l.fecha_alta && l.fecha_alta>=mesIni && l.fecha_alta<=mesFin);
+    const bajas    = lics.filter(l=>l.estado==='dada_de_baja' && l.fecha_alta && l.fecha_alta.substring(0,7)===mesActual);
+    const churn    = altas.length - bajas.length;
+
+    document.getElementById('d-lic-activas').textContent = activas.length;
+    document.getElementById('d-altas').textContent       = altas.length>0?'+'+altas.length:'0';
+    document.getElementById('d-bajas').textContent       = bajas.length>0?'-'+bajas.length:'0';
+    document.getElementById('d-churn').textContent       = (churn>=0?'+':'')+churn;
+    document.getElementById('d-altas-sub').textContent   = altas.map(l=>l.clientes?.nombre||'').filter(Boolean).slice(0,2).join(', ')+(altas.length>2?' y más':'') || 'Sin altas este mes';
+    document.getElementById('d-bajas-sub').textContent   = bajas.length ? bajas.map(l=>l.clientes?.nombre||'').filter(Boolean).slice(0,2).join(', ') : 'Sin bajas este mes';
+    const churnEl = document.getElementById('d-churn');
+    churnEl.style.color = churn>0?'var(--green)':churn<0?'var(--red)':'var(--text3)';
+
+    // ── BLOQUE 4: Gráfico MRR 12 meses ──────────────────────
+    const CUENTAS_DASH = [
+      {key:'totem_nube',      label:'Totem Nube',      color:'rgba(180,130,0,0.8)'},
+      {key:'gestion_play',    label:'Gestion Play',    color:'rgba(60,120,220,0.8)'},
+      {key:'validar',         label:'Validar GP',      color:'rgba(40,160,80,0.8)'},
+      {key:'carlos_pussetto', label:'Carlos Pussetto', color:'rgba(130,80,200,0.8)'},
+      {key:'validar_cp',      label:'Validar CP',      color:'rgba(210,50,50,0.8)'},
+    ];
+
+    // Últimos 12 meses
+    const periodos12 = [];
+    for(let i=11;i>=0;i--){
+      const d=new Date(hoy.getFullYear(),hoy.getMonth()-i,1);
+      periodos12.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
+    }
+    const labeles12 = periodos12.map(p=>{
+      const [y,m]=p.split('-');
+      const d=new Date(Number(y),Number(m)-1,1);
+      return d.toLocaleDateString('es-AR',{month:'short',year:'2-digit'});
+    });
+
+    // Agrupar facturas por periodo+cuenta
+    const mapaFact = {};
+    facts.forEach(f=>{
+      if(!mapaFact[f.periodo]) mapaFact[f.periodo]={};
+      mapaFact[f.periodo][f.cuenta] = (mapaFact[f.periodo][f.cuenta]||0)+(f.monto_total||0);
+    });
+
+    const datasets = CUENTAS_DASH.map(c=>({
+      label: c.label,
+      data:  periodos12.map(p=>(mapaFact[p]?.(c.key)||0)),
+      backgroundColor: c.color,
+      stack: 'mrr',
+      borderRadius: 3,
+      borderWidth: 0,
+    }));
+    // Línea total
+    datasets.push({
+      label: 'Total',
+      data:  periodos12.map(p=>Object.values(mapaFact[p]||{}).reduce((s,v)=>s+v,0)),
+      type:  'line',
+      borderColor: 'rgba(255,255,255,0.7)',
+      backgroundColor: 'transparent',
+      borderWidth: 2,
+      pointRadius: 3,
+      tension: 0.3,
+      stack: undefined,
+    });
+
+    const ctxMrr = document.getElementById('chart-mrr');
+    if(_chartMrr) _chartMrr.destroy();
+    _chartMrr = new Chart(ctxMrr, {
+      type: 'bar',
+      data: { labels: labeles12, datasets },
+      options: {
+        responsive:true, maintainAspectRatio:true,
+        plugins:{
+          legend:{ position:'bottom', labels:{ color:'#aaa', font:{size:10}, boxWidth:10 } },
+          tooltip:{
+            callbacks:{
+              label: ctx => ` ${ctx.dataset.label}: $${fmt(ctx.raw)}`
+            }
+          }
+        },
+        scales:{
+          x:{ stacked:true, ticks:{color:'#888',font:{size:10}}, grid:{color:'rgba(255,255,255,0.04)'} },
+          y:{ stacked:true, ticks:{color:'#888',font:{size:10}, callback:v=>'$'+fmt(v)}, grid:{color:'rgba(255,255,255,0.07)'} }
+        }
+      }
+    });
+
+    // ── BLOQUE 4b: Donut distribución mes actual ─────────────
+    const distData  = CUENTAS_DASH.map(c=>mapaFact[mesActual]?.[c.key]||0);
+    const distLabels= CUENTAS_DASH.map(c=>c.label);
+    const distColors= CUENTAS_DASH.map(c=>c.color);
+
+    const ctxDist = document.getElementById('chart-dist');
+    if(_chartDist) _chartDist.destroy();
+    _chartDist = new Chart(ctxDist, {
+      type: 'doughnut',
+      data: { labels: distLabels, datasets:[{ data:distData, backgroundColor:distColors, borderWidth:2, borderColor:'var(--surface)' }] },
+      options: {
+        responsive:true, maintainAspectRatio:true,
+        plugins:{
+          legend:{ position:'bottom', labels:{ color:'#aaa', font:{size:10}, boxWidth:10 } },
+          tooltip:{
+            callbacks:{
+              label: ctx => ` ${ctx.label}: $${fmt(ctx.raw)} (${mrr?(ctx.raw/mrr*100).toFixed(1):0}%)`
+            }
+          }
+        }
+      }
+    });
+
+    // ── BLOQUE 5: Top 10 clientes ────────────────────────────
+    const facMesMapa = {};
+    facMes.forEach(f=>{
+      const nombre = f.cuenta==='validar'?'VALIDAR GP (consolidado)':f.cuenta==='validar_cp'?'VALIDAR CP (consolidado)':f.clientes?.nombre||'—';
+      const key    = f.cliente_id+'|'+f.cuenta;
+      if(!facMesMapa[key]) facMesMapa[key]={ nombre, cuenta:f.cuenta, monto:0 };
+      facMesMapa[key].monto += (f.monto_total||0);
+    });
+    const topClientes = Object.values(facMesMapa).sort((a,b)=>b.monto-a.monto).slice(0,10);
+
+    const COB_LABEL = {totem_nube:'Totem Nube',gestion_play:'Gestion Play',validar:'Validar GP',carlos_pussetto:'Carlos Pussetto',validar_cp:'Validar CP'};
+    const COB_BADGE = {totem_nube:'badge-amber',gestion_play:'badge-blue',validar:'badge-green',carlos_pussetto:'badge-purple',validar_cp:'badge-red'};
+    const topBody = document.getElementById('dash-top-body');
+    if(topClientes.length){
+      const mrrMax = topClientes[0].monto;
+      topBody.innerHTML = topClientes.map((c,i)=>`
+        <tr>
+          <td style="color:var(--text3);font-size:11px;">${i+1}</td>
+          <td>
+            <strong>${c.nombre}</strong>
+            <div style="height:3px;background:var(--border2);border-radius:2px;margin-top:4px;width:100%;">
+              <div style="height:3px;background:var(--accent);border-radius:2px;width:${(c.monto/mrrMax*100).toFixed(0)}%;"></div>
+            </div>
+          </td>
+          <td><span class="badge ${COB_BADGE[c.cuenta]||'badge-gray'}">${COB_LABEL[c.cuenta]||c.cuenta}</span></td>
+          <td style="text-align:right;font-family:'DM Mono',monospace;font-weight:600;color:var(--accent);">$${fmt(c.monto)}</td>
+          <td style="text-align:right;font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);">$${fmt(c.monto*1.21)}</td>
+          <td style="text-align:right;font-size:11px;color:var(--text3);">${(c.monto/mrr*100).toFixed(1)}%</td>
+        </tr>`).join('');
+    } else {
+      topBody.innerHTML = '<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--text3);">Sin datos para este mes</td></tr>';
+    }
+
+  }catch(e){ toast('Error cargando dashboard: '+e.message); }
+}
+
+
+// ── DASHBOARD ────────────────────────────────────────────────
+let _chartMrr  = null;
+let _chartDist = null;
+
+function irAVencidas(){
+  showPage('cobranzas');
+  setTimeout(()=>{
+    const sel = document.getElementById('filtro-periodo');
+    if(sel){ sel.value='__vencidos__'; loadCobranzas(); }
+  }, 300);
+}
+
+async function loadDashboard(){
+  const hoy = new Date();
+  const mesActual = `${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}`;
+  const mesPrev   = (() => { const d=new Date(hoy.getFullYear(),hoy.getMonth()-1,1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; })();
+  const mesStr    = hoy.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
+  const el = document.getElementById('dash-subtitle');
+  if(el) el.textContent = 'Actualizado · ' + hoy.toLocaleDateString('es-AR',{day:'2-digit',month:'long',year:'numeric'});
+
+  try{
+    // ── Cargar datos en paralelo ──────────────────────────────
+    const [facturas, licencias] = await Promise.all([
+      api('facturas?select=id,periodo,cuenta,monto_total,estado,cliente_id,clientes(nombre),pagos(monto)&order=periodo.desc'),
+      api('licencias?select=id,estado,cuenta,precio_actual,moneda,fecha_alta,tipo,clientes(nombre),cliente_id')
+    ]);
+
+    const facts = facturas||[];
+    const lics  = licencias||[];
+
+    // ── BLOQUE 1: KPIs financieros ───────────────────────────
+    const facMes  = facts.filter(f=>f.periodo===mesActual);
+    const facPrev = facts.filter(f=>f.periodo===mesPrev);
+
+    const mrr      = facMes.reduce((s,f)=>s+(f.monto_total||0),0);
+    const mrrPrev  = facPrev.reduce((s,f)=>s+(f.monto_total||0),0);
+    const mrrVar   = mrrPrev ? ((mrr-mrrPrev)/mrrPrev*100) : null;
+
+    const cobrado  = facMes.reduce((s,f)=>s+cobradoFact(f),0);
+    const cobPct   = mrr ? (cobrado/mrr*100).toFixed(1) : 0;
+    const pendiente= facMes.filter(f=>f.estado!=='incobrable').reduce((s,f)=>s+saldoFact(f),0);
+    const nPend    = facMes.filter(f=>saldoFact(f)>0&&f.estado!=='incobrable').length;
+
+    document.getElementById('d-mrr').textContent        = '$'+fmt(mrr);
+    document.getElementById('d-cobrado').textContent    = '$'+fmt(cobrado);
+    document.getElementById('d-pendiente').textContent  = '$'+fmt(pendiente);
+    document.getElementById('d-iva').textContent        = '$'+fmt(mrr*1.21);
+    document.getElementById('d-cobrado-pct').textContent= cobPct+'% del MRR cobrado';
+    document.getElementById('d-pendiente-sub').textContent= nPend+' factura'+(nPend!==1?'s':'')+' sin cobrar';
+
+    if(mrrVar !== null){
+      const varEl = document.getElementById('d-mrr-var');
+      const sign  = mrrVar>=0?'+':'';
+      varEl.innerHTML = `<span class="kpi-var ${mrrVar>=0?'up':'down'}">${sign}${mrrVar.toFixed(1)}% vs mes anterior</span>`;
+    }
+
+    // ── BLOQUE 2: Alertas ────────────────────────────────────
+    const vencidas    = facts.filter(f=>f.estado==='vencida');
+    const parciales   = facts.filter(f=>f.estado==='cobrado_parcial');
+    const enProceso   = lics.filter(l=>l.estado==='en_proceso');
+
+    const montoVenc   = vencidas.reduce((s,f)=>s+saldoFact(f),0);
+    const montoParcial= parciales.reduce((s,f)=>s+saldoFact(f),0);
+
+    document.getElementById('d-alert-vencidas').textContent        = vencidas.length;
+    document.getElementById('d-alert-vencidas-monto').textContent  = '$'+fmt(montoVenc);
+    document.getElementById('d-alert-parciales').textContent       = parciales.length;
+    document.getElementById('d-alert-parciales-monto').textContent = '$'+fmt(montoParcial)+' saldo';
+    document.getElementById('d-alert-proceso').textContent         = enProceso.length;
+
+    // ── BLOQUE 3: Portfolio ──────────────────────────────────
+    const activas  = lics.filter(l=>l.estado==='activa');
+    const mesIni   = mesActual+'-01';
+    const mesFinD  = new Date(hoy.getFullYear(),hoy.getMonth()+1,0);
+    const mesFin   = mesActual+'-'+String(mesFinD.getDate()).padStart(2,'0');
+
+    const altas    = lics.filter(l=>l.fecha_alta && l.fecha_alta>=mesIni && l.fecha_alta<=mesFin);
+    const bajas    = lics.filter(l=>l.estado==='dada_de_baja' && l.fecha_alta && l.fecha_alta.substring(0,7)===mesActual);
+    const churn    = altas.length - bajas.length;
+
+    document.getElementById('d-lic-activas').textContent = activas.length;
+    document.getElementById('d-altas').textContent       = altas.length>0?'+'+altas.length:'0';
+    document.getElementById('d-bajas').textContent       = bajas.length>0?'-'+bajas.length:'0';
+    document.getElementById('d-churn').textContent       = (churn>=0?'+':'')+churn;
+    document.getElementById('d-altas-sub').textContent   = altas.map(l=>l.clientes?.nombre||'').filter(Boolean).slice(0,2).join(', ')+(altas.length>2?' y más':'') || 'Sin altas este mes';
+    document.getElementById('d-bajas-sub').textContent   = bajas.length ? bajas.map(l=>l.clientes?.nombre||'').filter(Boolean).slice(0,2).join(', ') : 'Sin bajas este mes';
+    const churnEl = document.getElementById('d-churn');
+    churnEl.style.color = churn>0?'var(--green)':churn<0?'var(--red)':'var(--text3)';
+
+    // ── BLOQUE 4: Gráfico MRR 12 meses ──────────────────────
+    const CUENTAS_DASH = [
+      {key:'totem_nube',      label:'Totem Nube',      color:'rgba(180,130,0,0.8)'},
+      {key:'gestion_play',    label:'Gestion Play',    color:'rgba(60,120,220,0.8)'},
+      {key:'validar',         label:'Validar GP',      color:'rgba(40,160,80,0.8)'},
+      {key:'carlos_pussetto', label:'Carlos Pussetto', color:'rgba(130,80,200,0.8)'},
+      {key:'validar_cp',      label:'Validar CP',      color:'rgba(210,50,50,0.8)'},
+    ];
+
+    // Últimos 12 meses
+    const periodos12 = [];
+    for(let i=11;i>=0;i--){
+      const d=new Date(hoy.getFullYear(),hoy.getMonth()-i,1);
+      periodos12.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
+    }
+    const labeles12 = periodos12.map(p=>{
+      const [y,m]=p.split('-');
+      const d=new Date(Number(y),Number(m)-1,1);
+      return d.toLocaleDateString('es-AR',{month:'short',year:'2-digit'});
+    });
+
+    // Agrupar facturas por periodo+cuenta
+    const mapaFact = {};
+    facts.forEach(f=>{
+      if(!mapaFact[f.periodo]) mapaFact[f.periodo]={};
+      mapaFact[f.periodo][f.cuenta] = (mapaFact[f.periodo][f.cuenta]||0)+(f.monto_total||0);
+    });
+
+    const datasets = CUENTAS_DASH.map(c=>({
+      label: c.label,
+      data:  periodos12.map(p=>(mapaFact[p]?.(c.key)||0)),
+      backgroundColor: c.color,
+      stack: 'mrr',
+      borderRadius: 3,
+      borderWidth: 0,
+    }));
+    // Línea total
+    datasets.push({
+      label: 'Total',
+      data:  periodos12.map(p=>Object.values(mapaFact[p]||{}).reduce((s,v)=>s+v,0)),
+      type:  'line',
+      borderColor: 'rgba(255,255,255,0.7)',
+      backgroundColor: 'transparent',
+      borderWidth: 2,
+      pointRadius: 3,
+      tension: 0.3,
+      stack: undefined,
+    });
+
+    const ctxMrr = document.getElementById('chart-mrr');
+    if(_chartMrr) _chartMrr.destroy();
+    _chartMrr = new Chart(ctxMrr, {
+      type: 'bar',
+      data: { labels: labeles12, datasets },
+      options: {
+        responsive:true, maintainAspectRatio:true,
+        plugins:{
+          legend:{ position:'bottom', labels:{ color:'#aaa', font:{size:10}, boxWidth:10 } },
+          tooltip:{
+            callbacks:{
+              label: ctx => ` ${ctx.dataset.label}: $${fmt(ctx.raw)}`
+            }
+          }
+        },
+        scales:{
+          x:{ stacked:true, ticks:{color:'#888',font:{size:10}}, grid:{color:'rgba(255,255,255,0.04)'} },
+          y:{ stacked:true, ticks:{color:'#888',font:{size:10}, callback:v=>'$'+fmt(v)}, grid:{color:'rgba(255,255,255,0.07)'} }
+        }
+      }
+    });
+
+    // ── BLOQUE 4b: Donut distribución mes actual ─────────────
+    const distData  = CUENTAS_DASH.map(c=>mapaFact[mesActual]?.[c.key]||0);
+    const distLabels= CUENTAS_DASH.map(c=>c.label);
+    const distColors= CUENTAS_DASH.map(c=>c.color);
+
+    const ctxDist = document.getElementById('chart-dist');
+    if(_chartDist) _chartDist.destroy();
+    _chartDist = new Chart(ctxDist, {
+      type: 'doughnut',
+      data: { labels: distLabels, datasets:[{ data:distData, backgroundColor:distColors, borderWidth:2, borderColor:'var(--surface)' }] },
+      options: {
+        responsive:true, maintainAspectRatio:true,
+        plugins:{
+          legend:{ position:'bottom', labels:{ color:'#aaa', font:{size:10}, boxWidth:10 } },
+          tooltip:{
+            callbacks:{
+              label: ctx => ` ${ctx.label}: $${fmt(ctx.raw)} (${mrr?(ctx.raw/mrr*100).toFixed(1):0}%)`
+            }
+          }
+        }
+      }
+    });
+
+    // ── BLOQUE 5: Top 10 clientes ────────────────────────────
+    const facMesMapa = {};
+    facMes.forEach(f=>{
+      const nombre = f.cuenta==='validar'?'VALIDAR GP (consolidado)':f.cuenta==='validar_cp'?'VALIDAR CP (consolidado)':f.clientes?.nombre||'—';
+      const key    = f.cliente_id+'|'+f.cuenta;
+      if(!facMesMapa[key]) facMesMapa[key]={ nombre, cuenta:f.cuenta, monto:0 };
+      facMesMapa[key].monto += (f.monto_total||0);
+    });
+    const topClientes = Object.values(facMesMapa).sort((a,b)=>b.monto-a.monto).slice(0,10);
+
+    const COB_LABEL = {totem_nube:'Totem Nube',gestion_play:'Gestion Play',validar:'Validar GP',carlos_pussetto:'Carlos Pussetto',validar_cp:'Validar CP'};
+    const COB_BADGE = {totem_nube:'badge-amber',gestion_play:'badge-blue',validar:'badge-green',carlos_pussetto:'badge-purple',validar_cp:'badge-red'};
+    const topBody = document.getElementById('dash-top-body');
+    if(topClientes.length){
+      const mrrMax = topClientes[0].monto;
+      topBody.innerHTML = topClientes.map((c,i)=>`
+        <tr>
+          <td style="color:var(--text3);font-size:11px;">${i+1}</td>
+          <td>
+            <strong>${c.nombre}</strong>
+            <div style="height:3px;background:var(--border2);border-radius:2px;margin-top:4px;width:100%;">
+              <div style="height:3px;background:var(--accent);border-radius:2px;width:${(c.monto/mrrMax*100).toFixed(0)}%;"></div>
+            </div>
+          </td>
+          <td><span class="badge ${COB_BADGE[c.cuenta]||'badge-gray'}">${COB_LABEL[c.cuenta]||c.cuenta}</span></td>
+          <td style="text-align:right;font-family:'DM Mono',monospace;font-weight:600;color:var(--accent);">$${fmt(c.monto)}</td>
+          <td style="text-align:right;font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);">$${fmt(c.monto*1.21)}</td>
+          <td style="text-align:right;font-size:11px;color:var(--text3);">${(c.monto/mrr*100).toFixed(1)}%</td>
+        </tr>`).join('');
+    } else {
+      topBody.innerHTML = '<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--text3);">Sin datos para este mes</td></tr>';
+    }
+
+  }catch(e){ toast('Error cargando dashboard: '+e.message); }
+}
+
 async function init(){
   if(MODO_PROVEEDOR){
     document.body.classList.add('modo-proveedor');
@@ -2844,7 +3507,7 @@ async function init(){
   generarPeriodos();
   const ok = await checkConnection();
   if(ok){
-    loadClientes();
+    showPage('dashboard');
     checkMigraciones();
   }
   else if(!SUPA_URL||!SUPA_KEY) showPage('config');
