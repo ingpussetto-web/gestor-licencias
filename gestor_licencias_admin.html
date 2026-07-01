@@ -277,7 +277,7 @@ tr:hover td { background: var(--bg2); }
 .ms-btn:hover { border-color:var(--accent); }
 .ms-btn.active { border-color:var(--accent); background:var(--surface); }
 .ms-panel {
-  display:none; position:absolute; top:calc(100% + 4px); left:0; z-index:200;
+  display:none; position:fixed; top:0; left:0; z-index:1000;
   background:var(--surface); border:1px solid var(--border2); border-radius:10px;
   box-shadow:0 4px 20px rgba(0,0,0,0.12); min-width:190px; padding:5px 0;
 }
@@ -1959,12 +1959,16 @@ const MS_DEFAULTS = {tipo:'Todos los tipos', cuenta:'Todas las cuentas', estado:
 
 function toggleMs(key){
   const panel = document.getElementById('ms-'+key+'-panel');
+  const btn   = document.getElementById('ms-'+key+'-btn');
   const isOpen = panel.classList.contains('open');
   document.querySelectorAll('.ms-panel.open').forEach(p => p.classList.remove('open'));
   document.querySelectorAll('.ms-btn').forEach(b => b.classList.remove('active'));
   if(!isOpen){
+    const rect = btn.getBoundingClientRect();
+    panel.style.top  = (rect.bottom + 4) + 'px';
+    panel.style.left = rect.left + 'px';
     panel.classList.add('open');
-    document.getElementById('ms-'+key+'-btn').classList.add('active');
+    btn.classList.add('active');
   }
 }
 document.addEventListener('click', e => {
@@ -2398,11 +2402,12 @@ function generarPeriodos(){
   const sel = document.getElementById('filtro-periodo');
   const hoy = new Date();
   let opts = '<option value="__vencidos__">🔴 Todos los meses (Vencidos)</option>';
-  // 1 mes futuro + mes actual + 11 meses anteriores = 13 períodos
-  for(let i=-1;i<12;i++){
+  // Solo desde EVOL_INICIO hasta mes actual (sin futuros, sin histórico lejano)
+  for(let i=0;i<12;i++){
     const d = new Date(hoy.getFullYear(), hoy.getMonth()-i, 1);
     const val = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
     const label = d.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
+    if(val < EVOL_INICIO) continue;
     opts += `<option value="${val}"${i===0?' selected':''}>${label.charAt(0).toUpperCase()+label.slice(1)}</option>`;
   }
   sel.innerHTML = opts;
