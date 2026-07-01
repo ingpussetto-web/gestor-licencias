@@ -1929,71 +1929,6 @@ async function loadEvolucion(){
   }
 }
 
-async function loadEvolucion(){
-  const tbody = document.getElementById('evolucion-tbody');
-  try{
-    const facturas = await api('facturas?select=periodo,cuenta,monto_total&order=periodo.desc');
-    if(!facturas?.length){
-      tbody.innerHTML = '<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--text3);">Sin datos</td></tr>';
-      return;
-    }
-    const mapa = {};
-    facturas.forEach(f => {
-      if(!mapa[f.periodo]) mapa[f.periodo] = {};
-      mapa[f.periodo][f.cuenta] = (mapa[f.periodo][f.cuenta]||0) + (f.monto_total||0);
-    });
-    const periodos = Object.keys(mapa).sort().reverse();
-    const mesActual = new Date();
-    const mesActualStr = `${mesActual.getFullYear()}-${String(mesActual.getMonth()+1).padStart(2,'0')}`;
-    const CUENTAS = ['totem_nube','gestion_play','validar','carlos_pussetto','validar_cp'];
-    const CUENTA_COLORS = {
-      totem_nube:'var(--amber)', gestion_play:'var(--blue)',
-      validar:'var(--green)', carlos_pussetto:'var(--purple)', validar_cp:'var(--red)'
-    };
-    function varPct(periodos, idx, cuenta){
-      if(idx >= periodos.length-1) return '';
-      const cur  = mapa[periodos[idx]][cuenta]||0;
-      const prev = mapa[periodos[idx+1]][cuenta]||0;
-      if(!prev || !cur) return '';
-      const pct = ((cur-prev)/prev*100);
-      const color = pct>=0 ? 'var(--green)' : 'var(--red)';
-      const sign  = pct>=0 ? '+' : '';
-      return `<span style="font-size:10px;color:${color};margin-left:4px;">${sign}${pct.toFixed(1)}%</span>`;
-    }
-    tbody.innerHTML = periodos.map((p, idx) => {
-      const cuentasData = mapa[p];
-      const total = Object.values(cuentasData).reduce((s,v)=>s+v,0);
-      const totalPrev = idx < periodos.length-1
-        ? Object.values(mapa[periodos[idx+1]]||{}).reduce((s,v)=>s+v,0) : 0;
-      const totalVar = totalPrev
-        ? (() => { const pct=((total-totalPrev)/totalPrev*100); const c=pct>=0?'var(--green)':'var(--red)'; return `<span style="font-size:10px;color:${c};margin-left:4px;">${pct>=0?'+':''}${pct.toFixed(1)}%</span>`; })()
-        : '';
-      const esActual = p === mesActualStr;
-      const [y,m] = p.split('-');
-      const fecha = new Date(Number(y), Number(m)-1, 1);
-      const label = fecha.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
-      const labelFmt = label.charAt(0).toUpperCase()+label.slice(1);
-      const rowStyle = esActual
-        ? 'background:color-mix(in srgb,var(--accent) 6%,var(--surface));'
-        : idx%2===0 ? '' : 'background:var(--surface2);';
-      const celdas = CUENTAS.map(c => {
-        const v = cuentasData[c]||0;
-        const color = CUENTA_COLORS[c];
-        return v > 0
-          ? `<td style="padding:7px 12px;text-align:right;color:${color};font-family:'DM Mono',monospace;">$${fmt(v)}${varPct(periodos,idx,c)}</td>`
-          : `<td style="padding:7px 12px;text-align:right;color:var(--text3);">—</td>`;
-      }).join('');
-      return `<tr style="${rowStyle}${esActual?'font-weight:600;':''}">
-        <td style="padding:7px 12px;white-space:nowrap;">${labelFmt}${esActual?' <span style="font-size:10px;background:var(--accent);color:#fff;border-radius:4px;padding:1px 5px;margin-left:4px;">actual</span>':''}</td>
-        <td style="padding:7px 12px;text-align:right;font-family:'DM Mono',monospace;font-weight:600;">$${fmt(total)}${totalVar}</td>
-        ${celdas}
-      </tr>`;
-    }).join('');
-    _evolucionLoaded = true;
-  }catch(e){
-    tbody.innerHTML = `<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--red);">Error: ${e.message}</td></tr>`;
-  }
-}
 
 async function loadLicencias(){
   const tbody = document.getElementById('licencias-tbody');
@@ -3358,7 +3293,7 @@ async function loadDashboard(){
 
     const datasets = CUENTAS_DASH.map(c=>({
       label: c.label,
-      data:  periodos12.map(p=>(mapaFact[p]?.(c.key)||0)),
+      data:  periodos12.map(p=>(mapaFact[p]?.[c.key]||0)),
       backgroundColor: c.color,
       stack: 'mrr',
       borderRadius: 3,

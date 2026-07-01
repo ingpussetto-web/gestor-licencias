@@ -3292,7 +3292,7 @@ async function loadDashboard(){
 
     const datasets = CUENTAS_DASH.map(c=>({
       label: c.label,
-      data:  periodos12.map(p=>(mapaFact[p]?.(c.key)||0)),
+      data:  periodos12.map(p=>(mapaFact[p]?.[c.key]||0)),
       backgroundColor: c.color,
       stack: 'mrr',
       borderRadius: 3,
