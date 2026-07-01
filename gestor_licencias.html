@@ -734,7 +734,10 @@ tr:hover td { background: var(--bg2); }
         </div>
         <div class="hero-stats" id="licencias-hero"></div>
         <div style="display:flex;gap:8px;align-items:center;">
-          <button class="btn" id="btn-evolucion" onclick="toggleEvolucion()" style="font-size:12px;">📊 Evolución mensual</button>
+          <div style="display:flex;gap:4px;border:1px solid var(--border);border-radius:8px;padding:2px;background:var(--surface2);">
+            <button id="btn-evol-fact" onclick="toggleEvolucion('facturacion')" style="font-size:11px;padding:5px 10px;border:none;border-radius:6px;cursor:pointer;background:var(--accent);color:#fff;font-weight:600;">$ Facturación</button>
+            <button id="btn-evol-lics" onclick="toggleEvolucion('licencias')" style="font-size:11px;padding:5px 10px;border:none;border-radius:6px;cursor:pointer;background:transparent;color:var(--text3);">🔑 Licencias</button>
+          </div>
           <button class="btn primary admin-only" onclick="abrirModalLicencia()">+ Nueva licencia</button>
         </div>
       </div>
@@ -744,8 +747,8 @@ tr:hover td { background: var(--bg2); }
       <div id="evolucion-wrap" style="display:none;margin-bottom:16px;">
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
           <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
-            <span style="font-size:13px;font-weight:600;color:var(--text);">Evolución de facturación mensual por cuenta</span>
-            <span style="font-size:11px;color:var(--text3);">Basado en cobranzas generadas</span>
+            <span style="font-size:13px;font-weight:600;color:var(--text);" id="evolucion-titulo">Evolución de facturación mensual por cuenta</span>
+            <span style="font-size:11px;color:var(--text3);" id="evolucion-sub">Basado en cobranzas generadas</span>
           </div>
           <div style="overflow-x:auto;">
             <table id="evolucion-table" style="width:100%;border-collapse:collapse;font-size:12px;">
@@ -1734,16 +1737,196 @@ async function guardarCliente(){
 // ── LICENCIAS ────────────────────────────────────────────────
 let _licenciasData = [];
 // ── EVOLUCIÓN MENSUAL LICENCIAS ──────────────────────────────
-let _evolucionLoaded = false;
+const EVOL_INICIO = '2026-06'; // Mostrar desde este período en adelante
+let _evolucionModo   = 'facturacion'; // 'facturacion' | 'licencias'
+let _evolucionAbierto = false;
 
-function toggleEvolucion(){
+const CUENTAS_EVOL = ['totem_nube','gestion_play','validar','carlos_pussetto','validar_cp'];
+const CUENTA_COLORS_EVOL = {
+  totem_nube:'var(--amber)', gestion_play:'var(--blue)',
+  validar:'var(--green)', carlos_pussetto:'var(--purple)', validar_cp:'var(--red)'
+};
+
+function toggleEvolucion(modo){
   const wrap = document.getElementById('evolucion-wrap');
-  const btn  = document.getElementById('btn-evolucion');
-  const visible = wrap.style.display !== 'none';
-  wrap.style.display = visible ? 'none' : 'block';
-  btn.style.background = visible ? '' : 'var(--accent)';
-  btn.style.color = visible ? '' : '#fff';
-  if(!visible && !_evolucionLoaded) loadEvolucion();
+  // Si viene con modo: cambiar modo (siempre abrir si no está abierto)
+  if(modo){
+    const cambioModo = _evolucionModo !== modo;
+    _evolucionModo = modo;
+    // Actualizar estilos de botones
+    const btnFact = document.getElementById('btn-evol-fact');
+    const btnLics = document.getElementById('btn-evol-lics');
+    if(btnFact && btnLics){
+      btnFact.style.background = modo==='facturacion' ? 'var(--accent)' : 'transparent';
+      btnFact.style.color      = modo==='facturacion' ? '#fff' : 'var(--text3)';
+      btnFact.style.fontWeight = modo==='facturacion' ? '600' : '400';
+      btnLics.style.background = modo==='licencias'   ? 'var(--accent)' : 'transparent';
+      btnLics.style.color      = modo==='licencias'   ? '#fff' : 'var(--text3)';
+      btnLics.style.fontWeight = modo==='licencias'   ? '600' : '400';
+    }
+    if(!_evolucionAbierto){
+      wrap.style.display = 'block';
+      _evolucionAbierto = true;
+    }
+    if(cambioModo || !_evolucionAbierto) loadEvolucion();
+    return;
+  }
+  // Sin modo: toggle visibilidad
+  _evolucionAbierto = !_evolucionAbierto;
+  wrap.style.display = _evolucionAbierto ? 'block' : 'none';
+  if(_evolucionAbierto) loadEvolucion();
+}
+
+function _evolucionFmtPeriodo(p){
+  const [y,m] = p.split('-');
+  const fecha = new Date(Number(y), Number(m)-1, 1);
+  const label = fecha.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
+  return label.charAt(0).toUpperCase()+label.slice(1);
+}
+
+function _evolucionVarSpan(cur, prev){
+  if(!prev || !cur) return '';
+  const pct = ((cur-prev)/prev*100);
+  const color = pct>=0 ? 'var(--green)' : 'var(--red)';
+  return `<span style="font-size:10px;color:${color};margin-left:4px;">${pct>=0?'+':''}${pct.toFixed(1)}%</span>`;
+}
+
+async function loadEvolucion(){
+  const tbody  = document.getElementById('evolucion-tbody');
+  const titulo = document.getElementById('evolucion-titulo');
+  const sub    = document.getElementById('evolucion-sub');
+  tbody.innerHTML = '<tr><td colspan="7" style="padding:16px;text-align:center;color:var(--text3);"><span class="spinner" style="border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;width:16px;height:16px;display:inline-block;animation:spin .7s linear infinite;vertical-align:middle;"></span></td></tr>';
+
+  const hoy = new Date();
+  const mesActualStr = `${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}`;
+
+  try{
+    if(_evolucionModo === 'facturacion'){
+      // ── MODO FACTURACIÓN ─────────────────────────────────────
+      if(titulo) titulo.textContent = 'Evolución de facturación mensual por cuenta';
+      if(sub)    sub.textContent    = 'Basado en cobranzas generadas';
+
+      const facturas = await api('facturas?select=periodo,cuenta,monto_total&order=periodo.desc');
+      if(!facturas?.length){ tbody.innerHTML='<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--text3);">Sin datos</td></tr>'; return; }
+
+      const mapa = {};
+      facturas.forEach(f => {
+        if(!mapa[f.periodo]) mapa[f.periodo] = {};
+        mapa[f.periodo][f.cuenta] = (mapa[f.periodo][f.cuenta]||0) + (f.monto_total||0);
+      });
+
+      const periodos = Object.keys(mapa).filter(p => p >= EVOL_INICIO).sort().reverse();
+
+      tbody.innerHTML = periodos.map((p, idx) => {
+        const dat      = mapa[p];
+        const total    = Object.values(dat).reduce((s,v)=>s+v,0);
+        const prevP    = periodos[idx+1];
+        const totalPrev= prevP ? Object.values(mapa[prevP]||{}).reduce((s,v)=>s+v,0) : 0;
+        const esActual = p === mesActualStr;
+        const rowStyle = esActual ? 'background:color-mix(in srgb,var(--accent) 6%,var(--surface));' : idx%2===0?'':'background:var(--surface2);';
+
+        const celdas = CUENTAS_EVOL.map(c => {
+          const v    = dat[c]||0;
+          const prev = prevP ? (mapa[prevP]?.[c]||0) : 0;
+          const color= CUENTA_COLORS_EVOL[c];
+          return v > 0
+            ? `<td style="padding:7px 12px;text-align:right;color:${color};font-family:'DM Mono',monospace;">$${fmt(v)}${_evolucionVarSpan(v,prev)}</td>`
+            : `<td style="padding:7px 12px;text-align:right;color:var(--text3);">—</td>`;
+        }).join('');
+
+        return `<tr style="${rowStyle}${esActual?'font-weight:600;':''}">
+          <td style="padding:7px 12px;white-space:nowrap;">${_evolucionFmtPeriodo(p)}${esActual?' <span style="font-size:10px;background:var(--accent);color:#fff;border-radius:4px;padding:1px 5px;margin-left:4px;">actual</span>':''}</td>
+          <td style="padding:7px 12px;text-align:right;font-family:'DM Mono',monospace;font-weight:600;">$${fmt(total)}${_evolucionVarSpan(total,totalPrev)}</td>
+          ${celdas}
+        </tr>`;
+      }).join('');
+
+    } else {
+      // ── MODO LICENCIAS ───────────────────────────────────────
+      if(titulo) titulo.textContent = 'Evolución de licencias activas por cuenta';
+      if(sub)    sub.textContent    = 'Cantidad de licencias activas al cierre de cada mes';
+
+      const licencias = await api('licencias?select=cuenta,estado,fecha_alta&order=fecha_alta.asc');
+      if(!licencias?.length){ tbody.innerHTML='<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--text3);">Sin datos</td></tr>'; return; }
+
+      // Generar lista de períodos desde EVOL_INICIO hasta mesActual
+      const periodos = [];
+      const [iy,im] = EVOL_INICIO.split('-').map(Number);
+      const [ay,am] = mesActualStr.split('-').map(Number);
+      let cy=iy, cm=im;
+      while(cy < ay || (cy===ay && cm<=am)){
+        periodos.push(`${cy}-${String(cm).padStart(2,'0')}`);
+        cm++; if(cm>12){ cm=1; cy++; }
+      }
+      periodos.reverse();
+
+      // Para cada período, contar licencias con fecha_alta <= fin del período
+      // y que no estén dadas de baja (aproximación: estado !== 'dada_de_baja')
+      // Nota: sin fecha_baja, las licencias dadas de baja en el futuro se descuentan para todos los meses
+      function countLics(periodo){
+        const finMes = periodo + '-31'; // alcanza para comparar YYYY-MM
+        const activas = licencias.filter(l =>
+          l.fecha_alta && l.fecha_alta.substring(0,7) <= periodo &&
+          l.estado !== 'dada_de_baja'
+        );
+        const porCuenta = {};
+        activas.forEach(l => { porCuenta[l.cuenta] = (porCuenta[l.cuenta]||0)+1; });
+        return { total: activas.length, porCuenta };
+      }
+
+      const mapaLics = {};
+      periodos.forEach(p => { mapaLics[p] = countLics(p); });
+
+      // Actualizar encabezados de tabla para mostrar # en vez de $
+      const thead = document.querySelector('#evolucion-table thead tr');
+      if(thead){
+        thead.innerHTML = `
+          <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);white-space:nowrap;">Período</th>
+          <th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:600;color:var(--text3);">Total</th>
+          <th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:600;color:var(--amber);">Totem Nube</th>
+          <th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:600;color:var(--blue);">Gestion Play</th>
+          <th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:600;color:var(--green);">Validar GP</th>
+          <th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:600;color:var(--purple);">Carlos Pussetto</th>
+          <th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:600;color:var(--red);">Validar CP</th>`;
+      }
+
+      tbody.innerHTML = periodos.map((p, idx) => {
+        const { total, porCuenta } = mapaLics[p];
+        const prevP    = periodos[idx+1];
+        const totalPrev= prevP ? mapaLics[prevP].total : 0;
+        const esActual = p === mesActualStr;
+        const rowStyle = esActual ? 'background:color-mix(in srgb,var(--accent) 6%,var(--surface));' : idx%2===0?'':'background:var(--surface2);';
+
+        const celdas = CUENTAS_EVOL.map(c => {
+          const v    = porCuenta[c]||0;
+          const prev = prevP ? (mapaLics[prevP].porCuenta[c]||0) : 0;
+          const color= CUENTA_COLORS_EVOL[c];
+          const diff = v-prev;
+          const diffSpan = prevP && diff!==0
+            ? `<span style="font-size:10px;color:${diff>0?'var(--green)':'var(--red)'};margin-left:4px;">${diff>0?'+':''}${diff}</span>`
+            : '';
+          return v > 0
+            ? `<td style="padding:7px 12px;text-align:right;color:${color};font-weight:600;">${v}${diffSpan}</td>`
+            : `<td style="padding:7px 12px;text-align:right;color:var(--text3);">—</td>`;
+        }).join('');
+
+        const diffTotal = totalPrev ? total-totalPrev : 0;
+        const diffSpanT = totalPrev && diffTotal!==0
+          ? `<span style="font-size:10px;color:${diffTotal>0?'var(--green)':'var(--red)'};margin-left:4px;">${diffTotal>0?'+':''}${diffTotal}</span>`
+          : '';
+
+        return `<tr style="${rowStyle}${esActual?'font-weight:600;':''}">
+          <td style="padding:7px 12px;white-space:nowrap;">${_evolucionFmtPeriodo(p)}${esActual?' <span style="font-size:10px;background:var(--accent);color:#fff;border-radius:4px;padding:1px 5px;margin-left:4px;">actual</span>':''}</td>
+          <td style="padding:7px 12px;text-align:right;font-weight:700;">${total}${diffSpanT}</td>
+          ${celdas}
+        </tr>`;
+      }).join('');
+
+      // Restaurar encabezados para facturación si se vuelve a ese modo
+    }
+  }catch(e){
+    tbody.innerHTML = `<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--red);">Error: ${e.message}</td></tr>`;
+  }
 }
 
 async function loadEvolucion(){
@@ -3275,225 +3458,6 @@ async function loadDashboard(){
   }catch(e){ toast('Error cargando dashboard: '+e.message); }
 }
 
-
-// ── DASHBOARD ────────────────────────────────────────────────
-let _chartMrr  = null;
-let _chartDist = null;
-
-function irAVencidas(){
-  showPage('cobranzas');
-  setTimeout(()=>{
-    const sel = document.getElementById('filtro-periodo');
-    if(sel){ sel.value='__vencidos__'; loadCobranzas(); }
-  }, 300);
-}
-
-async function loadDashboard(){
-  const hoy = new Date();
-  const mesActual = `${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}`;
-  const mesPrev   = (() => { const d=new Date(hoy.getFullYear(),hoy.getMonth()-1,1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; })();
-  const mesStr    = hoy.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
-  const el = document.getElementById('dash-subtitle');
-  if(el) el.textContent = 'Actualizado · ' + hoy.toLocaleDateString('es-AR',{day:'2-digit',month:'long',year:'numeric'});
-
-  try{
-    // ── Cargar datos en paralelo ──────────────────────────────
-    const [facturas, licencias] = await Promise.all([
-      api('facturas?select=id,periodo,cuenta,monto_total,estado,cliente_id,clientes(nombre),pagos(monto)&order=periodo.desc'),
-      api('licencias?select=id,estado,cuenta,precio_actual,moneda,fecha_alta,tipo,clientes(nombre),cliente_id')
-    ]);
-
-    const facts = facturas||[];
-    const lics  = licencias||[];
-
-    // ── BLOQUE 1: KPIs financieros ───────────────────────────
-    const facMes  = facts.filter(f=>f.periodo===mesActual);
-    const facPrev = facts.filter(f=>f.periodo===mesPrev);
-
-    const mrr      = facMes.reduce((s,f)=>s+(f.monto_total||0),0);
-    const mrrPrev  = facPrev.reduce((s,f)=>s+(f.monto_total||0),0);
-    const mrrVar   = mrrPrev ? ((mrr-mrrPrev)/mrrPrev*100) : null;
-
-    const cobrado  = facMes.reduce((s,f)=>s+cobradoFact(f),0);
-    const cobPct   = mrr ? (cobrado/mrr*100).toFixed(1) : 0;
-    const pendiente= facMes.filter(f=>f.estado!=='incobrable').reduce((s,f)=>s+saldoFact(f),0);
-    const nPend    = facMes.filter(f=>saldoFact(f)>0&&f.estado!=='incobrable').length;
-
-    document.getElementById('d-mrr').textContent        = '$'+fmt(mrr);
-    document.getElementById('d-cobrado').textContent    = '$'+fmt(cobrado);
-    document.getElementById('d-pendiente').textContent  = '$'+fmt(pendiente);
-    document.getElementById('d-iva').textContent        = '$'+fmt(mrr*1.21);
-    document.getElementById('d-cobrado-pct').textContent= cobPct+'% del MRR cobrado';
-    document.getElementById('d-pendiente-sub').textContent= nPend+' factura'+(nPend!==1?'s':'')+' sin cobrar';
-
-    if(mrrVar !== null){
-      const varEl = document.getElementById('d-mrr-var');
-      const sign  = mrrVar>=0?'+':'';
-      varEl.innerHTML = `<span class="kpi-var ${mrrVar>=0?'up':'down'}">${sign}${mrrVar.toFixed(1)}% vs mes anterior</span>`;
-    }
-
-    // ── BLOQUE 2: Alertas ────────────────────────────────────
-    const vencidas    = facts.filter(f=>f.estado==='vencida');
-    const parciales   = facts.filter(f=>f.estado==='cobrado_parcial');
-    const enProceso   = lics.filter(l=>l.estado==='en_proceso');
-
-    const montoVenc   = vencidas.reduce((s,f)=>s+saldoFact(f),0);
-    const montoParcial= parciales.reduce((s,f)=>s+saldoFact(f),0);
-
-    document.getElementById('d-alert-vencidas').textContent        = vencidas.length;
-    document.getElementById('d-alert-vencidas-monto').textContent  = '$'+fmt(montoVenc);
-    document.getElementById('d-alert-parciales').textContent       = parciales.length;
-    document.getElementById('d-alert-parciales-monto').textContent = '$'+fmt(montoParcial)+' saldo';
-    document.getElementById('d-alert-proceso').textContent         = enProceso.length;
-
-    // ── BLOQUE 3: Portfolio ──────────────────────────────────
-    const activas  = lics.filter(l=>l.estado==='activa');
-    const mesIni   = mesActual+'-01';
-    const mesFinD  = new Date(hoy.getFullYear(),hoy.getMonth()+1,0);
-    const mesFin   = mesActual+'-'+String(mesFinD.getDate()).padStart(2,'0');
-
-    const altas    = lics.filter(l=>l.fecha_alta && l.fecha_alta>=mesIni && l.fecha_alta<=mesFin);
-    const bajas    = lics.filter(l=>l.estado==='dada_de_baja' && l.fecha_alta && l.fecha_alta.substring(0,7)===mesActual);
-    const churn    = altas.length - bajas.length;
-
-    document.getElementById('d-lic-activas').textContent = activas.length;
-    document.getElementById('d-altas').textContent       = altas.length>0?'+'+altas.length:'0';
-    document.getElementById('d-bajas').textContent       = bajas.length>0?'-'+bajas.length:'0';
-    document.getElementById('d-churn').textContent       = (churn>=0?'+':'')+churn;
-    document.getElementById('d-altas-sub').textContent   = altas.map(l=>l.clientes?.nombre||'').filter(Boolean).slice(0,2).join(', ')+(altas.length>2?' y más':'') || 'Sin altas este mes';
-    document.getElementById('d-bajas-sub').textContent   = bajas.length ? bajas.map(l=>l.clientes?.nombre||'').filter(Boolean).slice(0,2).join(', ') : 'Sin bajas este mes';
-    const churnEl = document.getElementById('d-churn');
-    churnEl.style.color = churn>0?'var(--green)':churn<0?'var(--red)':'var(--text3)';
-
-    // ── BLOQUE 4: Gráfico MRR 12 meses ──────────────────────
-    const CUENTAS_DASH = [
-      {key:'totem_nube',      label:'Totem Nube',      color:'rgba(180,130,0,0.8)'},
-      {key:'gestion_play',    label:'Gestion Play',    color:'rgba(60,120,220,0.8)'},
-      {key:'validar',         label:'Validar GP',      color:'rgba(40,160,80,0.8)'},
-      {key:'carlos_pussetto', label:'Carlos Pussetto', color:'rgba(130,80,200,0.8)'},
-      {key:'validar_cp',      label:'Validar CP',      color:'rgba(210,50,50,0.8)'},
-    ];
-
-    // Últimos 12 meses
-    const periodos12 = [];
-    for(let i=11;i>=0;i--){
-      const d=new Date(hoy.getFullYear(),hoy.getMonth()-i,1);
-      periodos12.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
-    }
-    const labeles12 = periodos12.map(p=>{
-      const [y,m]=p.split('-');
-      const d=new Date(Number(y),Number(m)-1,1);
-      return d.toLocaleDateString('es-AR',{month:'short',year:'2-digit'});
-    });
-
-    // Agrupar facturas por periodo+cuenta
-    const mapaFact = {};
-    facts.forEach(f=>{
-      if(!mapaFact[f.periodo]) mapaFact[f.periodo]={};
-      mapaFact[f.periodo][f.cuenta] = (mapaFact[f.periodo][f.cuenta]||0)+(f.monto_total||0);
-    });
-
-    const datasets = CUENTAS_DASH.map(c=>({
-      label: c.label,
-      data:  periodos12.map(p=>(mapaFact[p]?.(c.key)||0)),
-      backgroundColor: c.color,
-      stack: 'mrr',
-      borderRadius: 3,
-      borderWidth: 0,
-    }));
-    // Línea total
-    datasets.push({
-      label: 'Total',
-      data:  periodos12.map(p=>Object.values(mapaFact[p]||{}).reduce((s,v)=>s+v,0)),
-      type:  'line',
-      borderColor: 'rgba(255,255,255,0.7)',
-      backgroundColor: 'transparent',
-      borderWidth: 2,
-      pointRadius: 3,
-      tension: 0.3,
-      stack: undefined,
-    });
-
-    const ctxMrr = document.getElementById('chart-mrr');
-    if(_chartMrr) _chartMrr.destroy();
-    _chartMrr = new Chart(ctxMrr, {
-      type: 'bar',
-      data: { labels: labeles12, datasets },
-      options: {
-        responsive:true, maintainAspectRatio:true,
-        plugins:{
-          legend:{ position:'bottom', labels:{ color:'#aaa', font:{size:10}, boxWidth:10 } },
-          tooltip:{
-            callbacks:{
-              label: ctx => ` ${ctx.dataset.label}: $${fmt(ctx.raw)}`
-            }
-          }
-        },
-        scales:{
-          x:{ stacked:true, ticks:{color:'#888',font:{size:10}}, grid:{color:'rgba(255,255,255,0.04)'} },
-          y:{ stacked:true, ticks:{color:'#888',font:{size:10}, callback:v=>'$'+fmt(v)}, grid:{color:'rgba(255,255,255,0.07)'} }
-        }
-      }
-    });
-
-    // ── BLOQUE 4b: Donut distribución mes actual ─────────────
-    const distData  = CUENTAS_DASH.map(c=>mapaFact[mesActual]?.[c.key]||0);
-    const distLabels= CUENTAS_DASH.map(c=>c.label);
-    const distColors= CUENTAS_DASH.map(c=>c.color);
-
-    const ctxDist = document.getElementById('chart-dist');
-    if(_chartDist) _chartDist.destroy();
-    _chartDist = new Chart(ctxDist, {
-      type: 'doughnut',
-      data: { labels: distLabels, datasets:[{ data:distData, backgroundColor:distColors, borderWidth:2, borderColor:'var(--surface)' }] },
-      options: {
-        responsive:true, maintainAspectRatio:true,
-        plugins:{
-          legend:{ position:'bottom', labels:{ color:'#aaa', font:{size:10}, boxWidth:10 } },
-          tooltip:{
-            callbacks:{
-              label: ctx => ` ${ctx.label}: $${fmt(ctx.raw)} (${mrr?(ctx.raw/mrr*100).toFixed(1):0}%)`
-            }
-          }
-        }
-      }
-    });
-
-    // ── BLOQUE 5: Top 10 clientes ────────────────────────────
-    const facMesMapa = {};
-    facMes.forEach(f=>{
-      const nombre = f.cuenta==='validar'?'VALIDAR GP (consolidado)':f.cuenta==='validar_cp'?'VALIDAR CP (consolidado)':f.clientes?.nombre||'—';
-      const key    = f.cliente_id+'|'+f.cuenta;
-      if(!facMesMapa[key]) facMesMapa[key]={ nombre, cuenta:f.cuenta, monto:0 };
-      facMesMapa[key].monto += (f.monto_total||0);
-    });
-    const topClientes = Object.values(facMesMapa).sort((a,b)=>b.monto-a.monto).slice(0,10);
-
-    const COB_LABEL = {totem_nube:'Totem Nube',gestion_play:'Gestion Play',validar:'Validar GP',carlos_pussetto:'Carlos Pussetto',validar_cp:'Validar CP'};
-    const COB_BADGE = {totem_nube:'badge-amber',gestion_play:'badge-blue',validar:'badge-green',carlos_pussetto:'badge-purple',validar_cp:'badge-red'};
-    const topBody = document.getElementById('dash-top-body');
-    if(topClientes.length){
-      const mrrMax = topClientes[0].monto;
-      topBody.innerHTML = topClientes.map((c,i)=>`
-        <tr>
-          <td style="color:var(--text3);font-size:11px;">${i+1}</td>
-          <td>
-            <strong>${c.nombre}</strong>
-            <div style="height:3px;background:var(--border2);border-radius:2px;margin-top:4px;width:100%;">
-              <div style="height:3px;background:var(--accent);border-radius:2px;width:${(c.monto/mrrMax*100).toFixed(0)}%;"></div>
-            </div>
-          </td>
-          <td><span class="badge ${COB_BADGE[c.cuenta]||'badge-gray'}">${COB_LABEL[c.cuenta]||c.cuenta}</span></td>
-          <td style="text-align:right;font-family:'DM Mono',monospace;font-weight:600;color:var(--accent);">$${fmt(c.monto)}</td>
-          <td style="text-align:right;font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);">$${fmt(c.monto*1.21)}</td>
-          <td style="text-align:right;font-size:11px;color:var(--text3);">${(c.monto/mrr*100).toFixed(1)}%</td>
-        </tr>`).join('');
-    } else {
-      topBody.innerHTML = '<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--text3);">Sin datos para este mes</td></tr>';
-    }
-
-  }catch(e){ toast('Error cargando dashboard: '+e.message); }
-}
 
 async function init(){
   if(MODO_PROVEEDOR){
