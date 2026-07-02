@@ -1,0 +1,1890 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Totem Nube — Producción</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0f0f11;--surface:#17171a;--surface2:#1e1e22;--surface3:#252529;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
+  --text:#f0f0f0;--text2:#888;--text3:#666;
+  --green:#00c896;--green-dim:rgba(0,200,150,0.1);--green-border:rgba(0,200,150,0.25);
+  --amber:#f5a623;--amber-dim:rgba(245,166,35,0.1);--amber-border:rgba(245,166,35,0.25);
+  --red:#ff5e5e;--red-dim:rgba(255,94,94,0.09);--red-border:rgba(255,94,94,0.25);
+  --blue:#4d9fff;--blue-dim:rgba(77,159,255,0.09);--blue-border:rgba(77,159,255,0.25);
+  --radius:8px;--radius-lg:12px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+.app{display:grid;grid-template-columns:220px 1fr;min-height:100vh;}
+.sidebar{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;}
+.main{padding:24px 28px;overflow-y:auto;}
+.logo{padding:18px 20px;border-bottom:1px solid var(--border);}
+.logo-name{font-size:14px;font-weight:600;}
+.logo-sub{font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:2px;}
+.nav{padding:10px 0;flex:1;}
+.nav-section{padding:10px 16px 4px;font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.12em;font-family:'DM Mono',monospace;}
+.nav-item{display:flex;align-items:center;gap:9px;padding:7px 16px;cursor:pointer;font-size:12.5px;color:var(--text2);transition:all 0.12s;border-left:2px solid transparent;}
+.nav-item:hover{color:var(--text);background:rgba(255,255,255,0.025);}
+.nav-item.active{color:var(--green);border-left-color:var(--green);background:var(--green-dim);}
+.sidebar-footer{padding:14px 16px;border-top:1px solid var(--border);}
+.conn-status{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;}
+.conn-dot{width:6px;height:6px;border-radius:50%;background:var(--text3);}
+.conn-dot.ok{background:var(--green);}
+
+.page{display:none;}
+.page.active{display:block;}
+.page-header{margin-bottom:20px;}
+.page-title{font-size:20px;font-weight:600;letter-spacing:-0.025em;}
+.page-sub{font-size:12px;color:var(--text2);margin-top:3px;}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px 20px;margin-bottom:12px;}
+.card-title{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;font-family:'DM Mono',monospace;margin-bottom:14px;}
+
+/* OP List */
+.op-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px;margin-bottom:8px;cursor:pointer;transition:all 0.15s;border-left:3px solid var(--green);}
+.op-card:hover{border-color:var(--green-border);background:rgba(0,200,150,0.03);}
+.op-numero{font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);margin-bottom:3px;}
+.op-cliente{font-size:15px;font-weight:600;color:var(--text);}
+.op-producto{font-size:12px;color:var(--text2);margin-top:2px;}
+.op-meta{font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:4px;}
+.op-progress-mini{display:flex;align-items:center;gap:8px;margin-top:8px;}
+.progress-bar{flex:1;height:3px;background:var(--surface3);border-radius:2px;overflow:hidden;}
+.progress-fill{height:100%;background:var(--green);border-radius:2px;transition:width 0.3s;}
+.progress-label{font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;white-space:nowrap;}
+
+/* Scan area */
+.scan-area{background:var(--surface2);border:2px dashed var(--border2);border-radius:var(--radius-lg);padding:20px;margin-bottom:16px;transition:border-color 0.2s;}
+.scan-area.active{border-color:var(--green);border-style:solid;background:var(--green-dim);}
+.scan-area.error{border-color:var(--red);border-style:solid;background:var(--red-dim);}
+.scan-label{font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.08em;}
+.scan-input{width:100%;background:transparent;border:none;font-size:18px;font-family:'DM Mono',monospace;color:var(--text);outline:none;caret-color:var(--green);}
+.scan-input::placeholder{color:var(--text3);font-size:14px;}
+.scan-feedback{font-size:13px;margin-top:8px;min-height:20px;font-family:'DM Mono',monospace;}
+.scan-feedback.ok{color:var(--green);}
+.scan-feedback.err{color:var(--red);}
+.scan-feedback.warn{color:var(--amber);}
+
+/* Checklist */
+.checklist{display:flex;flex-direction:column;gap:4px;}
+.check-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:var(--radius);border:1px solid var(--border);transition:all 0.2s;}
+.check-item.asignado{background:var(--green-dim);border-color:var(--green-border);}
+.check-item.pendiente{background:var(--surface2);}
+.check-item.no_aplica{opacity:0.35;}
+.check-icon{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;}
+.check-item.asignado .check-icon{background:var(--green);color:#000;}
+.check-item.pendiente .check-icon{background:var(--surface3);border:1px solid var(--border2);color:var(--text3);}
+.check-item.no_aplica .check-icon{background:var(--surface3);color:var(--text3);}
+.check-nombre{flex:1;font-size:13px;}
+.check-item.asignado .check-nombre{color:var(--green);}
+.check-item.pendiente .check-nombre{color:var(--text);}
+.check-uid{font-size:10px;font-family:'DM Mono',monospace;color:var(--text3);margin-top:2px;}
+.check-qty{font-size:11px;font-family:'DM Mono',monospace;color:var(--text3);white-space:nowrap;}
+
+/* OP header en vista detalle */
+.op-detail-header{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px;margin-bottom:16px;}
+.op-detail-numero{font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);}
+.op-detail-cliente{font-size:18px;font-weight:600;margin:3px 0;}
+.op-detail-producto{font-size:13px;color:var(--text2);}
+.op-detail-color{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--amber);font-family:'DM Mono',monospace;margin-top:4px;}
+
+/* Progress big */
+.progress-big{margin:16px 0;}
+.progress-big-bar{height:8px;background:var(--surface3);border-radius:4px;overflow:hidden;margin-bottom:6px;}
+.progress-big-fill{height:100%;background:var(--green);border-radius:4px;transition:width 0.4s;}
+.progress-big-label{display:flex;justify-content:space-between;font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;}
+
+/* Buttons */
+.btn{padding:7px 14px;font-size:12px;border-radius:var(--radius);border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;transition:all 0.12s;font-family:'DM Sans',sans-serif;height:34px;display:inline-flex;align-items:center;gap:6px;}
+.btn:hover{background:rgba(255,255,255,0.05);color:var(--text);}
+.btn.green{border-color:var(--green);color:var(--green);}
+.btn.green:hover{background:var(--green-dim);}
+.btn.solid-green{background:var(--green);border-color:var(--green);color:#000;font-weight:600;}
+.btn.solid-green:hover{background:#00b888;}
+.btn.red{border-color:var(--red);color:var(--red);}
+.btn.red:hover{background:var(--red-dim);}
+.btn.amber{border-color:var(--amber);color:var(--amber);}
+.btn:disabled{opacity:0.4;cursor:not-allowed;}
+.btn.lg{height:44px;font-size:14px;padding:0 20px;}
+
+/* Alert faltantes */
+.alert-faltantes{background:var(--red-dim);border:1px solid var(--red-border);border-radius:var(--radius);padding:12px 16px;margin-bottom:16px;}
+.alert-title{font-size:12px;font-weight:600;color:var(--red);margin-bottom:6px;font-family:'DM Mono',monospace;}
+.alert-items{font-size:12px;color:var(--text2);}
+
+/* Modal */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center;backdrop-filter:blur(3px);}
+.modal-bg.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:24px;width:480px;max-width:95vw;}
+.modal-title{font-size:16px;font-weight:600;margin-bottom:12px;}
+.modal-body{font-size:13px;color:var(--text2);margin-bottom:20px;line-height:1.6;}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;}
+.form-group{margin-bottom:14px;}
+.form-label{font-size:11px;color:var(--text2);margin-bottom:5px;display:block;}
+.form-input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:8px 10px;color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;}
+.form-input:focus{outline:none;border-color:var(--green);}
+textarea.form-input{resize:vertical;min-height:80px;}
+
+#toast{position:fixed;bottom:20px;right:20px;background:var(--surface2);border:1px solid var(--green-border);color:var(--green);font-size:11px;font-family:'DM Mono',monospace;padding:9px 14px;border-radius:var(--radius);z-index:9999;transition:opacity 0.3s;opacity:0;pointer-events:none;}
+.loading{display:flex;align-items:center;gap:8px;color:var(--text3);font-size:12px;font-family:'DM Mono',monospace;padding:20px 0;}
+.spinner{width:14px;height:14px;border:2px solid var(--border2);border-top-color:var(--green);border-radius:50%;animation:spin 0.7s linear infinite;flex-shrink:0;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.empty{text-align:center;padding:40px;color:var(--text3);font-size:12px;font-family:'DM Mono',monospace;}
+.empty-icon{font-size:32px;margin-bottom:8px;}
+
+/* Scan success flash */
+@keyframes flashGreen{0%{background:rgba(0,200,150,0.3);}100%{background:transparent;}}
+.flash-green{animation:flashGreen 0.6s ease-out;}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-name">Totem Nube</div>
+      <div class="logo-sub">PRODUCCIÓN · v1.0</div>
+    </div>
+    <nav class="nav">
+      <div class="nav-section">Trabajo</div>
+      <div class="nav-item active" id="nav-ops" onclick="showPage('ops')">
+        <span>◈</span> Órdenes activas
+      </div>
+      <div class="nav-item" id="nav-detalle" onclick="showPage('detalle')" style="display:none">
+        <span>▤</span> <span id="nav-op-label">OP actual</span>
+      </div>
+      <div class="nav-section">Sistema</div>
+      <div class="nav-item" onclick="showPage('config')">
+        <span>⚙</span> Configuración
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="conn-status">
+        <div class="conn-dot" id="conn-dot"></div>
+        <span id="conn-text">Conectando...</span>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <!-- LISTA DE OPs -->
+    <div class="page active" id="page-ops">
+      <div class="page-header" style="margin-bottom:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
+          <div>
+            <div class="page-title">Órdenes de producción</div>
+            <div class="page-sub">Seleccioná una orden para asignar insumos</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <select id="filtro-vista" onchange="aplicarFiltros()" style="height:32px;font-size:12px;padding:0 8px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:6px;">
+              <option value="vigentes">⚙ Vigentes</option>
+              <option value="terminadas">✅ Terminadas</option>
+            </select>
+            <select id="filtro-mes" onchange="aplicarFiltros()" style="height:32px;font-size:12px;padding:0 8px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:6px;">
+              <option value="">Todos los meses</option>
+            </select>
+          </div>
+        </div>
+        <div id="ops-kpis" style="display:none;margin-top:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;"></div>
+      </div>
+      <div id="ops-list"><div class="loading"><div class="spinner"></div>Cargando órdenes...</div></div>
+    </div>
+
+    <!-- DETALLE DE OP + ESCANEO -->
+    <div class="page" id="page-detalle">
+      <div id="op-detail-header"></div>
+
+      <!-- Barra de progreso -->
+      <div class="progress-big">
+        <div class="progress-big-bar"><div class="progress-big-fill" id="prog-fill" style="width:0%"></div></div>
+        <div class="progress-big-label">
+          <span id="prog-label">0 de 0 insumos asignados</span>
+          <span id="prog-pct">0%</span>
+        </div>
+      </div>
+
+      <!-- Scanner -->
+      <div class="scan-area" id="scan-area">
+        <div class="scan-label">Escanear insumo</div>
+        <input class="scan-input" type="text" id="scan-input"
+          placeholder="Apuntá el lector al código QR del insumo..."
+          autocomplete="off" autocorrect="off" spellcheck="false"
+          oninput="onScanInput(this.value)"
+          onkeydown="if(event.key==='Enter') procesarScan()">
+        <div class="scan-feedback" id="scan-feedback"></div>
+      </div>
+
+      <!-- Faltantes alert -->
+      <div id="faltantes-alert" style="display:none"></div>
+
+      <!-- Checklist -->
+      <div class="card">
+        <div class="card-title" style="display:flex;justify-content:space-between;">
+          <span>Lista de insumos</span>
+          <div style="display:flex;gap:6px;">
+            <button class="btn" style="height:24px;font-size:10px;" onclick="toggleVerTodos()">
+              <span id="toggle-label">Ver todos</span>
+            </button>
+          </div>
+        </div>
+        <div class="checklist" id="checklist"></div>
+      </div>
+
+      <!-- Acciones -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+        <button class="btn" onclick="volverAOPs()">← Volver</button>
+        <div style="display:flex;gap:8px;" id="botones-accion-op"></div>
+      </div>
+    </div>
+
+    <!-- CONFIG -->
+    <div class="page" id="page-config">
+      <div class="page-header">
+        <div class="page-title">Configuración</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Conexión</div>
+        <div class="form-group">
+          <label class="form-label">Project URL</label>
+          <input class="form-input" type="text" id="cfg-url" placeholder="https://xxxx.supabase.co">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Anon Key</label>
+          <input class="form-input" type="text" id="cfg-key" placeholder="eyJ...">
+        </div>
+        <button class="btn green" onclick="saveConfig()">Guardar y reconectar</button>
+        <div id="cfg-status" style="margin-top:10px;font-size:12px;font-family:'DM Mono',monospace;"></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- MODAL FALTANTE -->
+<div class="modal-bg" id="modal-faltante">
+  <div class="modal">
+    <div class="modal-title">⚠ Reportar insumo faltante</div>
+    <div class="modal-body">Describí qué insumo falta o qué problema encontraste. Se enviará una alerta a Gerencia/Compras.</div>
+    <div class="form-group">
+      <label class="form-label">Detalle del faltante</label>
+      <textarea class="form-input" id="faltante-texto" placeholder="Ej: No hay gabinetes Atril 19&quot; blancos en depósito..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modal-faltante')">Cancelar</button>
+      <button class="btn amber" onclick="enviarReporteFaltante()">Enviar alerta</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CERRAR SIN COMPLETAR -->
+<div class="modal-bg" id="modal-cerrar">
+  <div class="modal">
+    <div class="modal-title" style="color:var(--amber)">⚠ Insumos sin asignar</div>
+    <div class="modal-body" id="modal-cerrar-body"></div>
+    <div class="form-group">
+      <label class="form-label">Justificación (requerida)</label>
+      <textarea class="form-input" id="cerrar-justificacion" placeholder="Ej: Cliente aportó su propia Mini PC. Gerencia autorizó continuar."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modal-cerrar')">Cancelar</button>
+      <button class="btn amber" onclick="confirmarCierreConFaltantes()">Cerrar igual con justificación</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ─── CONFIG ────────────────────────────────────────────────
+let SUPA_URL = localStorage.getItem('supa_url') || '';
+let SUPA_KEY = localStorage.getItem('supa_key') || '';
+
+// ─── STATE ─────────────────────────────────────────────────
+let ops = [];
+let currentOP = null;
+let bomItems = [];
+let skusConAlerta = new Set(); // SKUs con faltante activo en alertas_gerencia
+let verSoloFaltantes = true;
+let scanTimeout = null;
+
+// ─── API ───────────────────────────────────────────────────
+async function api(path, method='GET', body=null){
+  if(!SUPA_URL||!SUPA_KEY) throw new Error('Sin configuración');
+  const opts = {
+    method,
+    headers:{
+      'apikey': SUPA_KEY,
+      'Authorization': 'Bearer ' + SUPA_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': method==='POST'?'return=representation':method==='PATCH'?'return=representation':''
+    }
+  };
+  if(body) opts.body = JSON.stringify(body);
+  const res = await fetch(SUPA_URL.replace(/\/$/,'')+'/rest/v1/'+path, opts);
+  if(!res.ok) throw new Error(await res.text());
+  if(res.status===204) return null;
+  return res.json();
+}
+
+// ─── NAVIGATION ────────────────────────────────────────────
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  document.getElementById('nav-'+id)?.classList.add('active');
+  if(id==='config') loadConfig();
+  if(id==='detalle') setTimeout(()=>document.getElementById('scan-input')?.focus(), 100);
+}
+
+function volverAOPs(){
+  currentOP = null;
+  bomItems = [];
+  document.getElementById('nav-detalle').style.display='none';
+  showPage('ops');
+  loadOPs();
+}
+
+// ─── CONNECTION ─────────────────────────────────────────────
+async function checkConnection(){
+  const dot=document.getElementById('conn-dot');
+  const txt=document.getElementById('conn-text');
+  if(!SUPA_URL||!SUPA_KEY){dot.className='conn-dot';txt.textContent='Sin configurar';return false;}
+  try{
+    await api('categorias?select=id&limit=1');
+    dot.className='conn-dot ok';txt.textContent='Conectado';return true;
+  }catch(e){dot.className='conn-dot';txt.textContent='Sin conexión';return false;}
+}
+
+// ─── LOAD OPs ───────────────────────────────────────────────
+let todasLasOPs = [];
+
+let docOpCodigos = {}; // { v14_orden: codigo_op_interno }
+
+async function loadOPs(){
+  try{
+    // Cargar todas las OPs (vigentes y terminadas)
+    todasLasOPs = await api('op_progreso?select=*&order=created_at.desc');
+    ops = todasLasOPs.filter(o => o.estado === 'en_produccion' || o.estado === 'iniciada' || o.estado === 'bom_confirmada');
+    // Cargar códigos internos desde doc_op_config
+    try {
+      const docs = await api('doc_op_config?select=cot_numero,datos');
+      docOpCodigos = {};
+      (docs||[]).forEach(function(r){
+        const cod = (r.datos||{}).codigo_op_interno||'';
+        if(cod) docOpCodigos[r.cot_numero.replace(/^COT-/, '')] = cod;
+      });
+    } catch(e){ /* no bloquear si falla */ }
+    poblarFiltroMes();
+    aplicarFiltros();
+  }catch(e){
+    document.getElementById('ops-list').innerHTML=`<div class="empty"><div class="empty-icon">⚠</div>Error cargando órdenes</div>`;
+  }
+}
+
+function poblarFiltroMes(){
+  const sel = document.getElementById('filtro-mes');
+  if(!sel) return;
+  const meses = new Set();
+  todasLasOPs.forEach(o=>{
+    const d = new Date(o.created_at);
+    meses.add(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));
+  });
+  const mesesArr = Array.from(meses).sort().reverse();
+  const NOMBRES = {1:'Enero',2:'Febrero',3:'Marzo',4:'Abril',5:'Mayo',6:'Junio',7:'Julio',8:'Agosto',9:'Septiembre',10:'Octubre',11:'Noviembre',12:'Diciembre'};
+  sel.innerHTML = '<option value="">Todos los meses</option>'
+    + mesesArr.map(m=>{
+        const [y,mo] = m.split('-');
+        return `<option value="${m}">${NOMBRES[parseInt(mo)]} ${y}</option>`;
+      }).join('');
+}
+
+function aplicarFiltros(){
+  const vista = document.getElementById('filtro-vista')?.value || 'vigentes';
+  const mes   = document.getElementById('filtro-mes')?.value || '';
+
+  let lista = todasLasOPs;
+
+  // Filtro vista
+  if(vista === 'vigentes'){
+    lista = lista.filter(o => o.estado !== 'completada');
+  } else {
+    lista = lista.filter(o => o.estado === 'completada');
+  }
+
+  // Filtro mes
+  if(mes){
+    const [y,mo] = mes.split('-');
+    lista = lista.filter(o=>{
+      const d = new Date(o.created_at);
+      return d.getFullYear() === parseInt(y) && (d.getMonth()+1) === parseInt(mo);
+    });
+  }
+
+  // Ordenar por código OP interno (numérico), los sin código al final
+  lista = lista.slice().sort(function(a, b){
+    const getCod = function(o){
+      const cod = docOpCodigos[o.v14_orden] || '';
+      const m = cod.match(/OP(\d+)\//);
+      return m ? parseInt(m[1]) : Infinity;
+    };
+    return getCod(a) - getCod(b);
+  });
+
+  renderOPs(lista, vista);
+}
+
+function renderOPs(lista, vista){
+  const el = document.getElementById('ops-list');
+  if(!lista) lista = ops;
+  if(!vista) vista = 'vigentes';
+
+  // KPIs solo para terminadas
+  const kpisEl = document.getElementById('ops-kpis');
+  if(vista === 'terminadas' && kpisEl){
+    const totalOPs = lista.length;
+    const totalEquipos = lista.reduce((s,o)=>s+(o.cantidad||0),0);
+    kpisEl.style.display = 'grid';
+    kpisEl.innerHTML =
+      `<div style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:10px 14px;">
+        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;font-family:'DM Mono',monospace;">OPs terminadas</div>
+        <div style="font-size:22px;font-weight:600;color:var(--green);margin-top:4px;">${totalOPs}</div>
+      </div>`
+      +`<div style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:10px 14px;">
+        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;font-family:'DM Mono',monospace;">Equipos finalizados</div>
+        <div style="font-size:22px;font-weight:600;color:var(--green);margin-top:4px;">${totalEquipos}</div>
+      </div>`;
+  } else if(kpisEl){
+    kpisEl.style.display = 'none';
+  }
+
+  if(!lista.length){
+    const msg = vista === 'terminadas' ? 'No hay órdenes terminadas' : 'No hay órdenes activas para producción';
+    el.innerHTML=`<div class="empty"><div class="empty-icon">${vista==='terminadas'?'✓':'⚙'}</div>${msg}</div>`;
+    return;
+  }
+
+  el.innerHTML = lista.map(o=>{
+    const pct = o.items_total>0 ? Math.round((o.items_asignados/o.items_total)*100) : 0;
+    const fechaRef = o.estado === 'completada' ? (o.fecha_cierre || o.created_at) : o.created_at;
+    const fecha = new Date(fechaRef).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'});
+    const esTerminada = o.estado === 'completada';
+    const borderColor = esTerminada ? 'var(--text3)' : 'var(--green)';
+    const clickable = esTerminada ? '' : `onclick="abrirOP(${o.id})"`;
+    const cursor = esTerminada ? 'default' : 'pointer';
+    return `<div class="op-card" ${clickable} style="border-left-color:${borderColor};cursor:${cursor};opacity:${esTerminada?'0.75':'1'};">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <div style="display:flex;align-items:center;gap:4px;">
+            <div class="op-numero">${o.op_numero}${docOpCodigos[o.v14_orden]?' / '+docOpCodigos[o.v14_orden]:''}</div>
+          </div>
+          <div class="op-cliente">${o.cliente}</div>
+          <div class="op-producto">${o.producto_nombre} × ${o.cantidad}</div>
+          <div class="op-meta">${fecha}${o.color_gabinete?' · '+o.color_gabinete:''}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+          ${esTerminada ? '<span style="font-size:11px;color:var(--green);font-weight:600;padding:3px 8px;border:1px solid var(--green);border-radius:4px;white-space:nowrap;">✓ Terminada</span>' : ''}
+          ${o.v14_orden ? `<button onclick="event.stopPropagation();verDocOP('${o.v14_orden}','${o.cliente}')" style="font-size:10px;padding:4px 8px;background:transparent;border:1px solid var(--border2);border-radius:4px;color:var(--text2);cursor:pointer;white-space:nowrap;">📄 Ver Doc. OP</button>` : ''}
+          <button onclick="event.stopPropagation();abrirNotas(${o.id},'${o.op_numero}','${o.cliente.replace(/'/g,"\'")}')" 
+            id="btn-notas-${o.id}"
+            style="font-size:10px;padding:4px 8px;background:transparent;border:1px solid var(--border2);border-radius:4px;color:var(--text2);cursor:pointer;white-space:nowrap;position:relative;">
+            📋 Notas <span id="badge-notas-${o.id}" style="display:none;background:var(--green);color:#000;border-radius:10px;padding:0 5px;font-size:9px;font-weight:700;margin-left:3px;"></span>
+          </button>
+        </div>
+      </div>
+      ${!esTerminada ? `<div class="op-progress-mini">
+        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+        <div class="progress-label">${o.items_asignados}/${o.items_total}</div>
+      </div>` : ''}
+    </div>`;
+  }).join('');
+
+  // Cargar badges de notas
+  const opIds = lista.map(o=>o.id);
+  if(opIds.length) setTimeout(()=>cargarBadgesNotas(opIds), 100);
+}
+
+// ─── ABRIR OP ───────────────────────────────────────────────
+async function abrirOP(opId){
+  try{
+    currentOP = ops.find(o=>o.id===opId);
+    if(!currentOP) return;
+
+    // Cargar BOM items (solo incluidos)
+    bomItems = await api(`op_bom_items?op_id=eq.${opId}&incluido=eq.true&sku_id=not.is.null&select=*,skus(codigo,nombre,tracking,categorias(nombre)),variantes(valor)&order=id.asc`);
+
+    // Cargar alertas activas de faltantes para esta OP
+    // Mapa de stock UID por sku_id (para detectar faltantes sin alerta)
+    window.stockUidMap = {};
+    try{
+      const uidSkuIds = [...new Set(bomItems.filter(i=>i.skus?.tracking==='uid').map(i=>i.sku_id).filter(Boolean))];
+      if(uidSkuIds.length){
+        const udsStock = await api('unidades?sku_id=in.('+uidSkuIds.join(',')+')'+'&estado=eq.stock&select=sku_id').catch(()=>[]);
+        uidSkuIds.forEach(id=>{ window.stockUidMap[id] = 0; });
+        (udsStock||[]).forEach(u=>{ window.stockUidMap[u.sku_id] = (window.stockUidMap[u.sku_id]||0)+1; });
+      }
+    }catch(e){ console.warn('stockUidMap:', e); }
+
+    skusConAlerta = new Set();
+    try{
+      const alertas = await api(`alertas_gerencia?tipo=eq.faltante_generacion_op&op_id=eq.${opId}&leida=eq.false&select=id,sku_id`);
+      if(alertas?.length){
+        // Verificar stock actual de cada SKU alertado
+        const skuIds = [...new Set(alertas.map(a=>a.sku_id).filter(Boolean))];
+
+        // Para insumos de cantidad: usar tabla stock directamente
+        const stockRows = await api('stock?sku_id=in.('+skuIds.join(',')+')'+'&select=sku_id,cantidad,cantidad_reservada').catch(()=>[]);
+        const stockMap = {};
+        (stockRows||[]).forEach(s=>{ stockMap[s.sku_id] = (s.cantidad||0) - (s.cantidad_reservada||0); });
+
+        // Para UIDs: contar unidades en stock
+        const unidadesItems = await api('unidades?sku_id=in.('+skuIds.join(',')+')'+'&estado=eq.stock&select=sku_id').catch(()=>[]);
+        const uidMap = {};
+        (unidadesItems||[]).forEach(u=>{ uidMap[u.sku_id] = (uidMap[u.sku_id]||0)+1; });
+
+        // Limpiar alertas donde ya hay stock
+        const aLimpiar = alertas.filter(a => {
+          const disp = (stockMap[a.sku_id]||0) + (uidMap[a.sku_id]||0);
+          return disp > 0;
+        });
+        if(aLimpiar.length){
+          await Promise.all(aLimpiar.map(a => api('alertas_gerencia?id=eq.'+a.id,'PATCH',{leida:true}).catch(()=>{})));
+        }
+
+        // Solo agregar al set los que siguen sin stock
+        alertas.filter(a => !aLimpiar.find(l=>l.id===a.id))
+               .forEach(a=>{ if(a.sku_id) skusConAlerta.add(a.sku_id); });
+      }
+    }catch(e){ console.warn('Error cargando alertas:', e.message); }
+
+    // Verificar stock de items cantidad pendientes (sin depender de alertas)
+    try{
+      // Obtener items pendientes de cantidad con su variante_id
+      const cantItems = bomItems.filter(i=>i.skus?.tracking==='cantidad' && i.estado!=='asignado' && i.sku_id);
+      const cantSkuIds = [...new Set(cantItems.map(i=>i.sku_id))];
+      if(cantSkuIds.length){
+        const stockCant = await api('stock?sku_id=in.('+cantSkuIds.join(',')+')'+'&select=sku_id,variante_id,cantidad').catch(()=>[]);
+        // Calcular reservado real desde op_bom_items (solo escaneados)
+        const asignadosRealesRaw = cantSkuIds.length
+          ? await api('op_bom_items?sku_id=in.('+cantSkuIds.join(',')+')'+'&uid_asignado=not.is.null&estado=eq.asignado&select=sku_id,variante_id,ordenes_produccion(estado)').catch(()=>[])
+          : [];
+        // Solo contar OPs activas para determinar disponible
+        const _estadosActivosProd = ['iniciada','bom_pendiente','bom_confirmada','en_produccion'];
+        const asignadosReales = (asignadosRealesRaw||[]).filter(a => _estadosActivosProd.includes(a.ordenes_produccion?.estado));
+        // Verificar cada item con su variante específica
+        cantItems.forEach(item=>{
+          const fila = stockCant.find(s=>{
+            if(s.sku_id !== item.sku_id) return false;
+            if(item.variante_id) return s.variante_id === item.variante_id;
+            return !s.variante_id;
+          });
+          const escaneados = (asignadosReales||[]).filter(a=>{
+            if(a.sku_id !== item.sku_id) return false;
+            if(item.variante_id) return a.variante_id === item.variante_id;
+            return !a.variante_id;
+          }).length;
+          const disp = fila ? (fila.cantidad||0) - escaneados : -1;
+          if(disp <= 0) skusConAlerta.add(item.sku_id);
+        });
+      }
+    }catch(e){ console.warn('Stock cantidad check:', e); }
+
+    // Mostrar header
+    const esIniciada = currentOP.estado === 'iniciada';
+    document.getElementById('op-detail-header').innerHTML = `
+      <div class="op-detail-header">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div>
+            <div class="op-detail-numero">${currentOP.op_numero} · ${currentOP.v14_orden||''}</div>
+            <div class="op-detail-cliente">${currentOP.cliente}</div>
+            <div class="op-detail-producto">${currentOP.producto_nombre} × ${currentOP.cantidad}</div>
+            ${currentOP.color_gabinete?`<div class="op-detail-color">● Color gabinete: ${currentOP.color_gabinete}</div>`:''}
+          </div>
+          ${esIniciada
+            ? '<div style="font-size:11px;color:var(--green);font-family:\'DM Mono\',monospace;padding:4px 10px;background:var(--green-dim);border-radius:6px;border:1px solid var(--green-border);">&#9679; En curso</div>'
+            : ''
+          }
+        </div>
+      </div>`;
+
+    // Nav item
+    document.getElementById('nav-detalle').style.display='flex';
+    document.getElementById('nav-op-label').textContent = currentOP.op_numero;
+
+    actualizarProgreso();
+    renderChecklist();
+    showPage('detalle');
+    document.getElementById('scan-input').focus();
+  }catch(e){toast('Error: '+e.message);}
+}
+
+// ─── PROGRESO ───────────────────────────────────────────────
+async function procesarCaja(sku){
+  const scanArea = document.getElementById('scan-area');
+  // Buscar item en BOM que corresponda a este SKU
+  const equipoNums = [...new Set(bomItems.map(i=>i.equipo_num||1))];
+  const esMultiEquipo = equipoNums.length > 1;
+  const itemsCompatibles = bomItems.filter(i=>
+    i.sku_id === sku.id &&
+    i.estado === 'pendiente' &&
+    i.incluido !== false &&
+    (!esMultiEquipo || (i.equipo_num||1) === equipoActivo)
+  );
+  if(!itemsCompatibles.length){
+    const yaAsignado = bomItems.find(i=>i.sku_id===sku.id && i.estado==='asignado');
+    if(yaAsignado){
+      setFeedback(`⚠ "${sku.nombre}" ya está asignado en esta OP`, 'warn');
+    } else {
+      scanArea.className='scan-area error';
+      setFeedback(`✕ "${sku.nombre}" no está en la lista de esta OP`, 'err');
+      setTimeout(()=>scanArea.className='scan-area', 2000);
+    }
+    return;
+  }
+  // Verificar stock disponible
+  const stockRows = await api(`stock?sku_id=eq.${sku.id}&variante_id=is.null&select=id,cantidad`).catch(()=>[]);
+  const stockRow = stockRows?.[0];
+  // Calcular reservado real desde op_bom_items — solo OPs activas (excluir completadas/canceladas)
+  const _estadosActivos = ['iniciada','bom_pendiente','bom_confirmada','en_produccion'];
+  const asignadosRealesProd = await api(`op_bom_items?sku_id=eq.${sku.id}&uid_asignado=not.is.null&estado=eq.asignado&select=id,ordenes_produccion(estado)`).catch(()=>[]);
+  const reservadoReal = (asignadosRealesProd||[]).filter(i => _estadosActivos.includes(i.ordenes_produccion?.estado)).length;
+  const disponible = stockRow ? (stockRow.cantidad - reservadoReal) : 0;
+
+  if(disponible <= 0){
+    scanArea.className='scan-area error';
+    setFeedback(`✕ Sin stock disponible de "${sku.nombre}" en caja`, 'err');
+    setTimeout(()=>scanArea.className='scan-area', 2000);
+    return;
+  }
+
+  const item = itemsCompatibles[0];
+  // Asignar item en BOM
+  await api(`op_bom_items?id=eq.${item.id}`, 'PATCH', {estado:'asignado', uid_asignado: sku.codigo+'-CAJA'});
+  // Descontar del stock
+  await api(`stock?id=eq.${stockRow.id}`, 'PATCH', {cantidad_reservada: reservadoReal + 1});
+
+  item.estado = 'asignado';
+  item.uid_asignado = sku.codigo+'-CAJA';
+
+  scanArea.className='scan-area success';
+  setFeedback(`✓ "${sku.nombre}" asignado desde caja — Stock restante: ${disponible - 1} ud.`, 'ok');
+  setTimeout(()=>{ scanArea.className='scan-area'; renderChecklist(); }, 1800);
+  document.getElementById('scan-input').value = '';
+  actualizarProgreso();
+}
+
+async function iniciarOPConPendientes(){
+  const total = bomItems.filter(i=>i.incluido!==false).length;
+  const asignados = bomItems.filter(i=>i.estado==='asignado').length;
+  const pendientes = total - asignados;
+
+  // Primero confirmar la intención
+  if(!confirm('Hay ' + pendientes + ' insumo(s) pendiente(s) de asignación.\n\n¿Iniciar la producción con faltantes? Se notificará la desviación a Compras.')) return;
+
+  // Pedir contraseña del encargado
+  const pass = prompt('Esta acción requiere autorización del encargado.\nIngresá la contraseña:');
+  if(pass === null) return; // canceló
+  if(pass !== 'picone001'){
+    alert('Contraseña incorrecta. No se puede iniciar con faltantes.');
+    return;
+  }
+
+  await iniciarOP(true);
+}
+
+async function iniciarOP(conDesvio){
+  if(!currentOP) return;
+  try{
+    await api(`ordenes_produccion?id=eq.${currentOP.id}`, 'PATCH', {
+      estado: 'iniciada',
+      fecha_inicio: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    });
+    currentOP.estado = 'iniciada';
+    toast('OP iniciada ✓');
+    // Recargar para refrescar el header
+    await abrirOP(currentOP.id);
+  }catch(e){ toast('Error: '+e.message); }
+}
+
+function renderBotonesAccion(){
+  const el = document.getElementById('botones-accion-op');
+  if(!el || !currentOP) return;
+  const esIniciada = currentOP.estado === 'iniciada';
+  const total = bomItems.filter(i=>i.incluido!==false).length;
+  const asignados = bomItems.filter(i=>i.estado==='asignado').length;
+  const completo = total > 0 && asignados === total;
+
+  if(esIniciada){
+    // En producción — mostrar solo Finalizar
+    el.innerHTML = '<button class="btn solid-green lg" onclick="cerrarOP()">✓ Orden de Producción Finalizada</button>';
+  } else {
+    // Asignando insumos — mostrar Reportar faltante + Iniciar Producción
+    const btnIniciar = completo
+      ? '<button class="btn" onclick="iniciarOP()" style="height:38px;font-size:13px;padding:0 18px;background:var(--green);color:#000;border-color:var(--green);font-weight:700;">&#9654; Iniciar Producción</button>'
+      : '<button class="btn" disabled title="Completá todos los insumos antes de iniciar" style="height:38px;font-size:13px;padding:0 18px;background:rgba(255,255,255,0.06);color:var(--text3);border-color:var(--border);cursor:not-allowed;opacity:0.4;">&#9654; Iniciar Producción</button>';
+    el.innerHTML = '<button class="btn amber" onclick="abrirModalFaltante()">⚠ Reportar faltante</button>' + btnIniciar;
+  }
+}
+
+function actualizarProgreso(){
+  const total = bomItems.filter(i=>i.incluido!==false).length;
+  const asignados = bomItems.filter(i=>i.estado==='asignado').length;
+  const pct = total>0 ? Math.round((asignados/total)*100) : 0;
+  document.getElementById('prog-fill').style.width = pct+'%';
+  document.getElementById('prog-label').textContent = `${asignados} de ${total} insumos asignados`;
+  document.getElementById('prog-pct').textContent = pct+'%';
+  renderBotonesAccion();
+
+  // Mostrar faltantes si hay
+  const faltantes = bomItems.filter(i=>i.incluido!==false && i.estado==='pendiente');
+  const alertEl = document.getElementById('faltantes-alert');
+  if(faltantes.length && asignados > 0){
+    alertEl.style.display='block';
+    alertEl.innerHTML = `<div class="alert-faltantes">
+      <div class="alert-title">⚠ ${faltantes.length} insumo${faltantes.length>1?'s':''} pendiente${faltantes.length>1?'s':''}</div>
+      <div class="alert-items">${faltantes.map(f=>f.nombre).join(', ')}</div>
+    </div>`;
+  } else {
+    alertEl.style.display='none';
+  }
+}
+
+// ─── CHECKLIST ───────────────────────────────────────────────
+function renderCheckItem(item, estado, variante){
+  return `<div class="check-item ${estado}" id="ci-${item.id}">
+      <div class="check-icon">${estado==='asignado'?'✓':'○'}</div>
+      <div style="flex:1">
+        <div class="check-nombre">${item.nombre}${variante?' — '+variante:''}</div>
+        ${item.uid_asignado?`<div class="check-uid">UID: ${item.uid_asignado}</div>`:''}
+        ${item.notas&&!item.uid_asignado?`<div class="check-uid">${item.notas}</div>`:''}
+      </div>
+      <div class="check-qty">×${item.qty}</div>
+      ${estado==='asignado'
+        ? `<span style="background:var(--green);color:#000;font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;">✓ Asignado</span>
+           <button style="background:none;border:none;color:var(--text3);font-size:11px;cursor:pointer;padding:2px 6px;" onclick="toggleDetalleAsig(${item.id}, '${item.uid_asignado}')">▾</button>`
+        : (skusConAlerta.has(item.sku_id) || (item.skus?.tracking === 'uid' && item.sku_id in window.stockUidMap && window.stockUidMap[item.sku_id] === 0))
+          ? `<span style="background:rgba(255,179,64,0.15);color:var(--amber);font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;border:1px solid rgba(255,179,64,0.3);">⚠ Faltante · Compras notificado</span>`
+          : `<button class="btn" style="height:24px;font-size:10px;padding:0 8px;" onclick="focusScanInput('${item.nombre}')">Asignar</button>`
+      }
+    </div>
+    <div id="detalle-asig-${item.id}" style="display:none;margin:4px 10px 8px 36px;padding:8px 12px;background:var(--surface2);border-radius:6px;border:1px solid var(--border);font-size:11px;color:var(--text2);">
+      <div style="color:var(--text3);font-size:10px;margin-bottom:4px;font-family:'DM Mono',monospace;">DETALLE DE ASIGNACIÓN</div>
+      <div id="detalle-asig-content-${item.id}">Cargando...</div>
+    </div>`;
+}
+
+async function focusScanInput(nombreInsumo){
+  const input = document.getElementById('scan-input');
+  if(!input) return;
+  input.focus();
+  input.value = '';
+  setFeedback('📷 Escaneá el QR de: ' + nombreInsumo, 'ok');
+}
+
+async function toggleDetalleAsig(itemId, uid){
+  const div = document.getElementById('detalle-asig-'+itemId);
+  if(!div) return;
+  const visible = div.style.display !== 'none';
+  if(visible){ div.style.display='none'; return; }
+  div.style.display='block';
+  const content = document.getElementById('detalle-asig-content-'+itemId);
+
+  try{
+    let rows = [];
+    if(uid && uid !== 'CANTIDAD-DESCONTADA' && !uid.endsWith('-CAJA')){
+      rows = await api(`unidades?uid=eq.${encodeURIComponent(uid)}&select=uid,estado,asignado_por,fecha_asignacion,op_id`).catch(()=>[]);
+    }
+    const item = bomItems.find(i=>i.id===itemId);
+    const op = currentOP;
+    let html = '';
+    html += `<div style="display:grid;grid-template-columns:auto 1fr;gap:2px 12px;">`;
+    html += `<span style="color:var(--text3);">UID</span><span style="font-family:'DM Mono',monospace;color:var(--text);">${uid||'—'}</span>`;
+    html += `<span style="color:var(--text3);">Equipo</span><span>${item?.equipo_num ? 'Equipo '+item.equipo_num : '—'}</span>`;
+    if(rows?.length){
+      const u = rows[0];
+      if(u.asignado_por) html += `<span style="color:var(--text3);">Asignado por</span><span>${u.asignado_por}</span>`;
+      if(u.fecha_asignacion){
+        const f = new Date(u.fecha_asignacion);
+        html += `<span style="color:var(--text3);">Fecha</span><span>${f.toLocaleDateString('es-AR')} ${f.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}</span>`;
+      }
+    } else if(uid === 'CANTIDAD-DESCONTADA'){
+      html += `<span style="color:var(--text3);">Tipo</span><span>Insumo de caja — descontado de stock</span>`;
+    } else if(uid?.endsWith('-CAJA')){
+      html += `<span style="color:var(--text3);">Tipo</span><span>Asignado desde caja</span>`;
+    }
+    if(item?.notas) html += `<span style="color:var(--text3);">Notas</span><span>${item.notas}</span>`;
+    html += '</div>';
+    content.innerHTML = html;
+  }catch(e){
+    content.innerHTML = '<span style="color:var(--text3);">No se pudo cargar el detalle</span>';
+  }
+}
+
+function toggleEquipo(eq){
+  const body = document.getElementById('eq-body-'+eq);
+  const arrow = document.getElementById('arrow-eq-'+eq);
+  if(!body) return;
+  const visible = body.style.display !== 'none';
+  body.style.display = visible ? 'none' : 'block';
+  if(arrow) arrow.textContent = visible ? '▶' : '▼';
+}
+
+// Variable para rastrear equipo activo al escanear
+let equipoActivo = 1;
+
+function seleccionarEquipo(eq){
+  equipoActivo = eq;
+  // Actualizar badges de activo
+  document.querySelectorAll('[id^="activo-eq-"]').forEach(el=>{
+    const num = parseInt(el.id.replace('activo-eq-',''));
+    el.style.display = num===eq ? 'inline' : 'none';
+  });
+}
+
+function renderChecklist(){
+  const el = document.getElementById('checklist');
+
+  // Detectar si hay múltiples equipos
+  const equipoNums = [...new Set(bomItems.map(i=>i.equipo_num||1))].sort((a,b)=>a-b);
+  const totalEquipos = equipoNums.length;
+
+  if(totalEquipos > 1){
+    // Vista por equipo
+    el.innerHTML = equipoNums.map(eq=>{
+      const itemsEq = bomItems.filter(i=>(i.equipo_num||1)===eq);
+      // Separar insumos normales de players
+      const itemsNormales = itemsEq.filter(i => !i.notas || !i.notas.startsWith('🖥'));
+      const itemsPlayers = itemsEq.filter(i => i.notas && i.notas.startsWith('🖥'));
+      const asignados = itemsEq.filter(i=>i.estado==='asignado').length;
+      const total = itemsEq.length;
+      const completo = asignados === total;
+
+      const renderItems = (items) => items.map(item=>{
+        const estado = item.estado||'pendiente';
+        const variante = item.variantes?.valor||'';
+        return renderCheckItem(item, estado, variante);
+      }).join('');
+
+      const playersHTML = itemsPlayers.length ? `
+        <div style="margin:6px 0 4px;padding:6px 8px;background:rgba(77,159,255,0.06);border:1px solid rgba(77,159,255,0.15);border-radius:6px;">
+          <div style="font-size:10px;font-weight:600;color:#4d9fff;margin-bottom:4px;letter-spacing:0.05em;">🖥 PLAYERS</div>
+          ${renderItems(verSoloFaltantes ? itemsPlayers.filter(i=>i.estado!=='asignado') : itemsPlayers)}
+        </div>` : '';
+
+      const normalesHTML = renderItems(verSoloFaltantes ? itemsNormales.filter(i=>i.estado!=='asignado') : itemsNormales);
+
+      return `<div style="margin-bottom:8px;border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+        <div onclick="toggleEquipo(${eq});seleccionarEquipo(${eq})" style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--panel2);cursor:pointer;" id="eq-header-${eq}">
+          <div style="font-size:13px;font-weight:600;">Equipo ${eq} de ${totalEquipos}</div>
+          <div id="activo-eq-${eq}" style="font-size:10px;background:var(--green);color:#000;padding:1px 6px;border-radius:4px;display:none;">● activo</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="eq-progress-${eq}" style="font-size:11px;color:var(--text2);">${asignados}/${total} insumos</span>
+            <span id="arrow-eq-${eq}" style="color:var(--text3);font-size:12px;">▼</span>
+          </div>
+        </div>
+        <div id="eq-body-${eq}" style="padding:8px;">
+          ${normalesHTML}
+          ${playersHTML}
+        </div>
+      </div>`;
+    }).join('');
+    return;
+  }
+
+  // Vista simple (un solo equipo)
+  const items = verSoloFaltantes
+    ? bomItems.filter(i=>i.estado!=='asignado')
+    : bomItems.slice().sort(function(a,b){ return (a.estado==='asignado'?1:0)-(b.estado==='asignado'?1:0); });
+
+  if(!items.length && verSoloFaltantes){
+    el.innerHTML='<div style="text-align:center;padding:20px;color:var(--green);font-family:\'DM Mono\',monospace;font-size:12px;">✓ Todos los insumos asignados</div>';
+    return;
+  }
+
+  el.innerHTML = items.map(item=>{
+    const estado = item.estado || 'pendiente';
+    const variante = item.variantes?.valor || '';
+    return renderCheckItem(item, estado, variante);
+  }).join('');
+}
+
+function toggleVerTodos(){
+  verSoloFaltantes = !verSoloFaltantes;
+  document.getElementById('toggle-label').textContent = verSoloFaltantes ? 'Ver todos' : 'Solo pendientes';
+  renderChecklist();
+}
+
+// ─── ESCANEO ───────────────────────────────────────────────
+let scanBuffer = '';
+
+function onScanInput(val){
+  scanBuffer = val;
+  // El lector manda todo de golpe y termina con Enter
+  // Pero también manejamos tipeo manual con delay
+  clearTimeout(scanTimeout);
+  if(val.length > 3){
+    scanTimeout = setTimeout(()=>{
+      if(scanBuffer === val) procesarScan();
+    }, 800);
+  }
+  setFeedback('', '');
+}
+
+async function procesarScan(){
+  let raw = document.getElementById('scan-input').value.trim();
+  // Si viene la URL completa, extraer solo el UID
+  let uid;
+  if(raw.includes('uid=') || raw.includes('uid¿') || raw.includes('UID=') || raw.includes('UID¿')){
+    // Extraer lo que viene después de uid= o uid¿
+    const match = raw.match(/uid[=¿]([^&\s]+)/i);
+    uid = match ? match[1].toUpperCase() : raw.toUpperCase();
+  } else {
+    uid = raw.toUpperCase();
+  }
+  // Limpiar caracteres mal interpretados por pistola QR
+  uid = uid.replace(/'/g, '-').replace(/¿/g, '?').replace(/Ñ/g, '').replace(/-+/g, '-');
+  if(!uid){ return; }
+
+  const scanArea = document.getElementById('scan-area');
+
+  try{
+    // Buscar la unidad física por UID
+    const unidades = await api(`unidades?uid=eq.${encodeURIComponent(uid)}&select=*,skus(id,codigo,nombre)`);
+
+    if(!unidades || !unidades.length){
+      // Intentar como código de SKU (caja de cantidad)
+      const skuPorCodigo = await api(`skus?codigo=eq.${encodeURIComponent(uid)}&select=id,nombre,codigo,tracking`).catch(()=>[]);
+      if(skuPorCodigo && skuPorCodigo.length && skuPorCodigo[0].tracking === 'cantidad'){
+        await procesarCaja(skuPorCodigo[0]);
+        return;
+      }
+      scanArea.className='scan-area error';
+      setFeedback(`✕ UID "${uid}" no encontrado en el sistema`, 'err');
+      setTimeout(()=>scanArea.className='scan-area', 2000);
+      return;
+    }
+
+    const unidad = unidades[0];
+
+    // Verificar que la unidad esté disponible (en stock)
+    if(unidad.estado !== 'stock'){
+      scanArea.className='scan-area error';
+      setFeedback(`✕ Esta unidad ya está en estado "${unidad.estado}"`, 'err');
+      setTimeout(()=>scanArea.className='scan-area', 2000);
+      return;
+    }
+
+    // Buscar items en la BOM que correspondan a este SKU y estén pendientes
+    const itemsCompatibles = bomItems.filter(i=>
+      i.sku_id === unidad.sku_id &&
+      i.estado === 'pendiente' &&
+      i.incluido !== false
+    );
+
+    if(!itemsCompatibles.length){
+      const yaAsignado = bomItems.find(i=>i.uid_asignado===uid);
+      if(yaAsignado){
+        setFeedback(`⚠ Este insumo ya está asignado a esta OP`, 'warn');
+      } else {
+        scanArea.className='scan-area error';
+        setFeedback(`✕ "${unidad.skus?.nombre}" no está en la lista de esta OP o ya fue asignado`, 'err');
+        setTimeout(()=>scanArea.className='scan-area', 2000);
+      }
+      return;
+    }
+
+    // Si hay un solo destino posible, asignar directo
+    // Si hay múltiples (ej: Mini PC que puede ir al equipo o a un player), pedir destino
+    if(itemsCompatibles.length === 1){
+      await asignarItemUID(itemsCompatibles[0], unidad, uid);
+    } else {
+      mostrarModalDestino(itemsCompatibles, unidad, uid);
+    }
+
+  }catch(e){
+    setFeedback('✕ Error: '+e.message, 'err');
+  }
+}
+
+function setFeedback(msg, type){
+  const el = document.getElementById('scan-feedback');
+  el.textContent = msg;
+  el.className = 'scan-feedback' + (type?' '+type:'');
+}
+
+// ─── ASIGNACIÓN MANUAL ───────────────────────────────────────
+async function asignarManual(itemId){
+  const item = bomItems.find(i=>i.id===itemId);
+  if(!item) return;
+
+  // Para insumos de cantidad (no UID), asignar directamente sin escanear
+  if(item.skus?.tracking === 'cantidad'){
+    if(!confirm(`¿Confirmar uso de "${item.nombre}" × ${item.qty}?\nSe descontará del stock.`)) return;
+    try{
+      // Descontar del stock por cantidad
+      const stockRows = await api(`stock?sku_id=eq.${item.sku_id}&select=id,cantidad`);
+      if(stockRows && stockRows.length){
+        const s = stockRows[0];
+        await api(`stock?id=eq.${s.id}`, 'PATCH', {
+          cantidad: Math.max(0, s.cantidad - item.qty),
+          updated_at: new Date().toISOString()
+        });
+      }
+      await api(`op_bom_items?id=eq.${itemId}`, 'PATCH', {
+        estado: 'asignado',
+        uid_asignado: 'CANTIDAD-DESCONTADA'
+      });
+      item.estado='asignado';
+      item.uid_asignado='CANTIDAD-DESCONTADA';
+      actualizarProgreso();
+      renderChecklist();
+      toast(`${item.nombre} asignado ✓`);
+    }catch(e){toast('Error: '+e.message);}
+  } else {
+    // Para UID, enfocar el scanner
+    document.getElementById('scan-input').focus();
+    setFeedback(`Escaneá el QR de: ${item.nombre}`, 'warn');
+  }
+}
+
+async function desasignarItem(itemId){
+  const item = bomItems.find(i=>i.id===itemId);
+  if(!item || !confirm('¿Desasignar este insumo?')) return;
+  try{
+    // Si tiene UID, devolver a stock
+    if(item.uid_asignado && item.uid_asignado !== 'CANTIDAD-DESCONTADA'){
+      await api(`unidades?uid=eq.${encodeURIComponent(item.uid_asignado)}`, 'PATCH', {estado:'stock'});
+    }
+    // Si era cantidad, restaurar stock
+    if(item.uid_asignado === 'CANTIDAD-DESCONTADA'){
+      const stockRows = await api(`stock?sku_id=eq.${item.sku_id}&select=id,cantidad`);
+      if(stockRows && stockRows.length){
+        await api(`stock?id=eq.${stockRows[0].id}`, 'PATCH', {cantidad: stockRows[0].cantidad + item.qty});
+      }
+    }
+    await api(`op_bom_items?id=eq.${itemId}`, 'PATCH', {estado:'pendiente', uid_asignado:null});
+    item.estado='pendiente';
+    item.uid_asignado=null;
+    actualizarProgreso();
+    renderChecklist();
+    toast('Insumo desasignado');
+  }catch(e){toast('Error: '+e.message);}
+}
+
+// ─── CERRAR OP ───────────────────────────────────────────────
+async function cerrarOP(){
+  const faltantes = bomItems.filter(i=>i.incluido!==false && i.estado==='pendiente');
+
+  if(faltantes.length){
+    // Hay faltantes — pedir justificación
+    document.getElementById('modal-cerrar-body').innerHTML =
+      `Hay <strong style="color:var(--red)">${faltantes.length} insumo${faltantes.length>1?'s':''}</strong> sin asignar:<br><br>` +
+      faltantes.map(f=>`• ${f.nombre}`).join('<br>') +
+      '<br><br>Si cerrás la OP con faltantes, se enviará una alerta a Gerencia.';
+    document.getElementById('cerrar-justificacion').value='';
+    openModal('modal-cerrar');
+  } else {
+    if(!confirm('¿Confirmar cierre de la OP? Todos los insumos están asignados.')) return;
+    await ejecutarCierreOP('Todos los insumos asignados correctamente.');
+  }
+}
+
+async function confirmarCierreConFaltantes(){
+  const justif = document.getElementById('cerrar-justificacion').value.trim();
+  if(!justif){ toast('Ingresá una justificación'); return; }
+  closeModal('modal-cerrar');
+  await ejecutarCierreOP(justif);
+}
+
+async function ejecutarCierreOP(notas){
+  try{
+    // ─── DESCONTAR STOCK: insumos de cantidad asignados desde caja ───────────
+    // Cada item con uid que termina en '-CAJA' fue asignado via asignarDesdeCaja,
+    // que incrementó cantidad_reservada pero nunca decrementó cantidad.
+    // Al cerrar la OP hay que hacer ambas cosas.
+    const itemsCaja = bomItems.filter(i =>
+      i.incluido !== false &&
+      i.uid_asignado &&
+      i.uid_asignado.endsWith('-CAJA') &&
+      i.skus?.tracking === 'cantidad'
+    );
+    // Agrupar por sku_id + variante_id (count de items = unidades consumidas)
+    const stockUpdates = {};
+    for(const item of itemsCaja){
+      const key = `${item.sku_id}_${item.variante_id||'null'}`;
+      if(!stockUpdates[key]) stockUpdates[key] = {sku_id:item.sku_id, variante_id:item.variante_id||null, count:0};
+      stockUpdates[key].count++;
+    }
+    for(const upd of Object.values(stockUpdates)){
+      const q = upd.variante_id
+        ? `stock?sku_id=eq.${upd.sku_id}&variante_id=eq.${upd.variante_id}&select=id,cantidad,cantidad_reservada`
+        : `stock?sku_id=eq.${upd.sku_id}&variante_id=is.null&select=id,cantidad,cantidad_reservada`;
+      const rows = await api(q).catch(()=>[]);
+      if(rows?.length){
+        const s = rows[0];
+        await api(`stock?id=eq.${s.id}`, 'PATCH', {
+          cantidad: Math.max(0, (s.cantidad||0) - upd.count),
+          cantidad_reservada: Math.max(0, (s.cantidad_reservada||0) - upd.count)
+        });
+      }
+    }
+    // ────────────────────────────────────────────────────────────────────────
+
+    // Marcar unidades asignadas como "producido" (solo UIDs reales, no CAJA ni CANTIDAD-DESCONTADA)
+    const uidsAsignados = bomItems
+      .filter(i=>i.uid_asignado && i.uid_asignado!=='CANTIDAD-DESCONTADA' && !i.uid_asignado.endsWith('-CAJA'))
+      .map(i=>i.uid_asignado);
+
+    for(const uid of uidsAsignados){
+      await api(`unidades?uid=eq.${encodeURIComponent(uid)}`, 'PATCH', {estado:'producido', op_id: currentOP.id});
+    }
+
+    // Cerrar OP
+    await api(`ordenes_produccion?id=eq.${currentOP.id}`, 'PATCH', {
+      estado: 'completada',
+      notas,
+      fecha_cierre: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    });
+
+    // Generar alerta si hay faltantes
+    const faltantes = bomItems.filter(i=>i.incluido!==false && i.estado==='pendiente');
+    if(faltantes.length){
+      const listaFaltantes = faltantes.map(f=>f.nombre).join(', ');
+      await api('alertas_gerencia', 'POST', [{
+        tipo: 'cierre_sin_escaneo',
+        op_id: currentOP.id,
+        mensaje: `OP ${currentOP.op_numero} (${currentOP.cliente}) cerrada con ${faltantes.length} insumo${faltantes.length>1?'s':''} sin escanear: ${listaFaltantes}. Justificación: ${notas}`,
+        leida: false
+      }]);
+    }
+
+    toast('✓ OP cerrada exitosamente');
+    setTimeout(()=>volverAOPs(), 1500);
+  }catch(e){toast('Error cerrando OP: '+e.message);}
+}
+
+// ─── REPORTE FALTANTE ────────────────────────────────────────
+async function enviarReporteFaltante(){
+  const texto = document.getElementById('faltante-texto').value.trim();
+  if(!texto){ toast('Describí el faltante'); return; }
+  try{
+    // Guardar en notas de la OP
+    const notasActuales = currentOP.notas || '';
+    await api(`ordenes_produccion?id=eq.${currentOP.id}`, 'PATCH', {
+      notas: notasActuales + '\n⚠ FALTANTE REPORTADO: ' + texto + ' [' + new Date().toLocaleString('es-AR') + ']'
+    });
+    closeModal('modal-faltante');
+    toast('Alerta enviada a Gerencia ✓');
+    document.getElementById('faltante-texto').value='';
+  }catch(e){toast('Error: '+e.message);}
+}
+
+function abrirModalFaltante(){
+  document.getElementById('faltante-texto').value='';
+  openModal('modal-faltante');
+}
+
+// ─── MODALS ─────────────────────────────────────────────────
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+
+// ─── CONFIG ─────────────────────────────────────────────────
+function loadConfig(){
+  document.getElementById('cfg-url').value=SUPA_URL;
+  document.getElementById('cfg-key').value=SUPA_KEY;
+}
+async function saveConfig(){
+  SUPA_URL=document.getElementById('cfg-url').value.trim().replace(/\/$/,'');
+  SUPA_KEY=document.getElementById('cfg-key').value.trim();
+  localStorage.setItem('supa_url',SUPA_URL);
+  localStorage.setItem('supa_key',SUPA_KEY);
+  const ok=await checkConnection();
+  document.getElementById('cfg-status').innerHTML=ok
+    ?'<span style="color:var(--green)">✓ Conectado</span>'
+    :'<span style="color:var(--red)">✗ Error</span>';
+  if(ok) loadOPs();
+}
+
+// ─── HELPERS ────────────────────────────────────────────────
+function toast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg;el.style.opacity='1';
+  clearTimeout(el._t);el._t=setTimeout(()=>{el.style.opacity='0';},2800);
+}
+
+// ─── INIT ────────────────────────────────────────────────────
+async function init(){
+  const ok=await checkConnection();
+  if(ok){
+    await loadOPs();
+    // Si viene con ?vista=terminadas desde el calculador, activar ese filtro
+    const params = new URLSearchParams(window.location.search);
+    if(params.get('vista') === 'terminadas'){
+      const sel = document.getElementById('filtro-vista');
+      if(sel){ sel.value = 'terminadas'; aplicarFiltros(); }
+    }
+  } else if(!SUPA_URL||!SUPA_KEY) showPage('config');
+}
+init();
+</script>
+
+<!-- MODAL DOC OP -->
+<div id="modal-doc-op" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9500;align-items:flex-start;justify-content:center;overflow-y:auto;padding:20px;">
+  <div style="background:#fff;border-radius:8px;width:100%;max-width:680px;margin:auto;position:relative;">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #ddd;background:#f8f9fa;border-radius:8px 8px 0 0;">
+      <div style="font-size:13px;font-weight:600;color:#333;">📄 Documento de Orden de Producción</div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="imprimirDocOP()" style="padding:6px 14px;background:#1a3a6b;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;">🖨 Imprimir</button>
+        <button onclick="cerrarDocOP()" style="padding:6px 14px;background:#666;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;">✕ Cerrar</button>
+      </div>
+    </div>
+    <div id="doc-op-contenido" style="padding:0;"></div>
+  </div>
+</div>
+
+<script>
+async function verDocOP(v14Orden, cliente){
+  const cotNumero = 'COT-' + v14Orden;
+  try{
+    const rows = await api('doc_op_config?cot_numero=eq.' + encodeURIComponent(cotNumero) + '&select=*');
+    if(!rows || !rows.length){
+      toast('No hay Doc. OP guardado para esta cotización — guardalo primero desde el calculador');
+      return;
+    }
+    const d = rows[0].datos;
+    const html = generarHtmlDocOP(d, cotNumero);
+    document.getElementById('doc-op-contenido').innerHTML = html;
+    // Deshabilitar todos los campos para solo lectura
+    document.querySelectorAll('#doc-op-contenido input, #doc-op-contenido select, #doc-op-contenido textarea').forEach(el => {
+      el.disabled = true;
+      el.style.opacity = '1';
+      el.style.cursor = 'default';
+    });
+    const modal = document.getElementById('modal-doc-op');
+    modal.style.display = 'flex';
+  }catch(e){ toast('Error: ' + e.message); console.error(e); }
+}
+
+function generarHtmlDocOP(d, cotNumero){
+  const v = (val, fallback='') => val || fallback;
+  const opRef = cotNumero.replace('COT-','OP-');
+  
+  const fila3 = (l1,v1,l2,v2,l3,v3) => `
+    <div><label style="font-size:10px;color:#888;text-transform:uppercase;">${l1}</label>
+      <input type="text" value="${v(v1)}" style="width:100%;border:1px solid #ddd;border-radius:4px;padding:4px 6px;font-size:13px;margin-top:2px;background:#f5f5f5;" readonly/></div>
+    <div><label style="font-size:10px;color:#888;text-transform:uppercase;">${l2}</label>
+      <input type="text" value="${v(v2)}" style="width:100%;border:1px solid #ddd;border-radius:4px;padding:4px 6px;font-size:13px;margin-top:2px;background:#f5f5f5;" readonly/></div>
+    <div><label style="font-size:10px;color:#888;text-transform:uppercase;">${l3}</label>
+      <input type="text" value="${v(v3)}" style="width:100%;border:1px solid #ddd;border-radius:4px;padding:4px 6px;font-size:13px;margin-top:2px;background:#f5f5f5;" readonly/></div>`;
+
+  const seccion = (titulo, contenido) => `
+    <div style="margin-bottom:14px;padding:12px;background:#f5f7fa;border-radius:6px;">
+      <div style="font-size:11px;font-weight:700;color:#1a3a6b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;border-bottom:1px solid #ddd;padding-bottom:6px;">${titulo}</div>
+      ${contenido}
+    </div>`;
+
+  return `<div style="background:#fff;color:#111;border-radius:0 0 8px 8px;padding:28px 32px;font-family:Arial,sans-serif;font-size:13px;">
+    <!-- Header -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #1a3a6b;padding-bottom:10px;margin-bottom:14px;">
+      <div>
+        <div style="font-size:17px;font-weight:700;color:#1a3a6b;letter-spacing:0.04em;">DOC. OP — ORDEN DE PRODUCCIÓN</div>
+        <div style="font-size:10px;color:#888;margin-top:2px;">R-OP-01.1 · Rev.: 03</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:11px;color:#888;margin-bottom:4px;">N° referencia (cotización):</div>
+        <div style="font-size:13px;font-weight:700;color:#1a3a6b;padding:2px 10px;border:1px solid #ddd;border-radius:4px;background:#f5f7fa;">${opRef}</div>
+        ${d.codigo_op_interno?`<div style="font-size:11px;color:#888;margin-top:8px;margin-bottom:4px;">Código OP interno:</div>
+        <div style="font-size:14px;font-weight:700;color:#fff;background:#1a3a6b;border-radius:4px;padding:4px 10px;">${d.codigo_op_interno}</div>`:''}
+      </div>
+    </div>
+
+    <!-- Datos proyecto -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;padding:12px;background:#f5f7fa;border-radius:6px;">
+      <div><label style="font-size:10px;color:#888;text-transform:uppercase;">Cliente / Empresa</label>
+        <input type="text" value="${v(d.cliente)}" style="width:100%;border:1px solid #ddd;border-radius:4px;padding:4px 6px;font-size:13px;margin-top:2px;background:#f5f5f5;" readonly/></div>
+      <div><label style="font-size:10px;color:#888;text-transform:uppercase;">Fecha Aprobación</label>
+        <input type="text" value="${v(d.fecha_aprobacion)}" style="width:100%;border:1px solid #ddd;border-radius:4px;padding:4px 6px;font-size:13px;margin-top:2px;background:#f5f5f5;" readonly/></div>
+      <div><label style="font-size:10px;color:#888;text-transform:uppercase;">Nombre Ref. / Tel</label>
+        <input type="text" value="${v(d.contacto)}" style="width:100%;border:1px solid #ddd;border-radius:4px;padding:4px 6px;font-size:13px;margin-top:2px;background:#f5f5f5;" readonly/></div>
+      <div><label style="font-size:10px;color:#888;text-transform:uppercase;">Producto</label>
+        <input type="text" value="${v(d.producto)}" style="width:100%;border:1px solid #ddd;border-radius:4px;padding:4px 6px;font-size:13px;margin-top:2px;background:#f5f5f5;" readonly/></div>
+      <div><label style="font-size:10px;color:#888;text-transform:uppercase;">Cantidad</label>
+        <input type="text" value="${v(d.cantidad)}" style="width:80px;border:1px solid #ddd;border-radius:4px;padding:4px 6px;font-size:13px;margin-top:2px;background:#f5f5f5;" readonly/></div>
+      <div><label style="font-size:10px;color:#888;text-transform:uppercase;">📅 Fecha compromiso cliente</label>
+        <input type="text" value="${v(d.fecha_compromiso)}" style="width:100%;border:1px solid #ddd;border-radius:4px;padding:4px 6px;font-size:13px;margin-top:2px;background:#f5f5f5;" readonly/></div>
+      ${d.transporte?'<div style="grid-column:1/-1;padding:8px 10px;background:#e8f5e9;border-radius:6px;border:1px solid #a5d6a7;font-size:12px;color:#2e7d32;">✅ <strong>Transporte incluido</strong></div>':''}
+    </div>
+
+    ${seccion('Estructura', `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+      ${fila3('Material',d.material,'Forma',d.forma,'Tamaño pantalla',d.pantalla)}
+      ${fila3('Táctil',d.tactil,'Color tótem',d.color,'Plano especial',d.plano)}
+    </div>
+    ${d.obs_estructura?`<div style="margin-top:8px;"><label style="font-size:10px;color:#888;text-transform:uppercase;">Observaciones estructura</label>
+      <textarea rows="2" style="width:100%;border:1px solid #ddd;border-radius:4px;padding:4px 6px;font-size:12px;margin-top:2px;background:#f5f5f5;box-sizing:border-box;" readonly>${d.obs_estructura}</textarea></div>`:''}
+    `)}
+
+    ${seccion('Accesorios y equipamiento', `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+      ${fila3('Mini PC',d.mini_pc,'Sistema Operativo',d.sistema_operativo,'Lic. Windows activada',d.windows)}
+      ${fila3('Impresora térmica',d.impresora,'Lector QR',d.lector_qr,'Cámara web',d.camara)}
+    </div>
+    ${d.player?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
+      <div><label style="font-size:10px;color:#888;text-transform:uppercase;">Lleva player</label>
+        <input type="text" value="${v(d.player)}" style="width:100%;border:1px solid #ddd;border-radius:4px;padding:4px 6px;font-size:13px;margin-top:2px;background:#f5f5f5;" readonly/></div>
+      <div><label style="font-size:10px;color:#888;text-transform:uppercase;">Cantidad players</label>
+        <input type="text" value="${v(d.cantidad_players)}" style="width:100%;border:1px solid #ddd;border-radius:4px;padding:4px 6px;font-size:13px;margin-top:2px;background:#f5f5f5;" readonly/></div>
+    </div>`:''}
+    ${d.tipo_pantalla?`<div style="margin-top:10px;"><label style="font-size:10px;color:#888;text-transform:uppercase;">Tipo de pantalla</label>
+      <input type="text" value="${v(d.tipo_pantalla)}" style="width:100%;border:1px solid #ddd;border-radius:4px;padding:4px 6px;font-size:13px;margin-top:2px;background:#f5f5f5;" readonly/></div>`:''}
+    ${d.otros_accesorios?`<div style="margin-top:8px;"><label style="font-size:10px;color:#888;text-transform:uppercase;">Otros accesorios / Propiedad del cliente</label>
+      <textarea rows="2" style="width:100%;border:1px solid #ddd;border-radius:4px;padding:4px 6px;font-size:12px;margin-top:2px;background:#f5f5f5;box-sizing:border-box;" readonly>${d.otros_accesorios}</textarea></div>`:''}
+    ${d.obs_accesorios?`<div style="margin-top:8px;"><label style="font-size:10px;color:#888;text-transform:uppercase;">Observaciones accesorios</label>
+      <textarea rows="2" style="width:100%;border:1px solid #ddd;border-radius:4px;padding:4px 6px;font-size:12px;margin-top:2px;background:#f5f5f5;box-sizing:border-box;" readonly>${d.obs_accesorios}</textarea></div>`:''}
+    `)}
+
+    ${seccion('Vidrio y Ploteo', `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div><label style="font-size:10px;color:#888;text-transform:uppercase;">Ploteo vidrio</label>
+        <input type="text" value="${v(d.ploteo_vidrio)}" style="width:100%;border:1px solid #ddd;border-radius:4px;padding:4px 6px;font-size:13px;margin-top:2px;background:#f5f5f5;" readonly/></div>
+      <div><label style="font-size:10px;color:#888;text-transform:uppercase;">Ploteo tótem</label>
+        <input type="text" value="${v(d.ploteo_totem)}" style="width:100%;border:1px solid #ddd;border-radius:4px;padding:4px 6px;font-size:13px;margin-top:2px;background:#f5f5f5;" readonly/></div>
+    </div>
+    ${d.obs_ploteo?`<div style="margin-top:8px;"><label style="font-size:10px;color:#888;text-transform:uppercase;">Observaciones ploteo</label>
+      <textarea rows="2" style="width:100%;border:1px solid #ddd;border-radius:4px;padding:4px 6px;font-size:12px;margin-top:2px;background:#f5f5f5;box-sizing:border-box;" readonly>${d.obs_ploteo}</textarea></div>`:''}
+    `)}
+
+    ${seccion('Software', `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div><label style="font-size:10px;color:#888;text-transform:uppercase;">Configuración software</label>
+        <input type="text" value="${v(d.config_software)}" style="width:100%;border:1px solid #ddd;border-radius:4px;padding:4px 6px;font-size:13px;margin-top:2px;background:#f5f5f5;" readonly/></div>
+      <div><label style="font-size:10px;color:#888;text-transform:uppercase;">Requiere ajustes a medida</label>
+        <input type="text" value="${v(d.ajustes_medida)}" style="width:100%;border:1px solid #ddd;border-radius:4px;padding:4px 6px;font-size:13px;margin-top:2px;background:#f5f5f5;" readonly/></div>
+    </div>
+    ${d.obs_software?`<div style="margin-top:8px;"><label style="font-size:10px;color:#888;text-transform:uppercase;">Observaciones software</label>
+      <textarea rows="2" style="width:100%;border:1px solid #ddd;border-radius:4px;padding:4px 6px;font-size:12px;margin-top:2px;background:#f5f5f5;box-sizing:border-box;" readonly>${d.obs_software}</textarea></div>`:''}
+    ${d.obs_adicionales?`<div style="margin-top:8px;"><label style="font-size:10px;color:#888;text-transform:uppercase;">Observaciones adicionales del proyecto</label>
+      <textarea rows="3" style="width:100%;border:1px solid #ddd;border-radius:4px;padding:4px 6px;font-size:12px;margin-top:2px;background:#f5f5f5;box-sizing:border-box;" readonly>${d.obs_adicionales}</textarea></div>`:''}
+    `)}
+  </div>`;
+}
+
+function imprimirDocOP(){
+  const contenido = document.getElementById('doc-op-contenido').innerHTML;
+  const win = window.open('', '_blank');
+  win.document.write('<html><head><title>Doc. OP</title><style>body{font-family:Arial,sans-serif;margin:20px;}@media print{button{display:none;}}</style></head><body>' + contenido + '</body></html>');
+  win.document.close();
+  win.print();
+}
+
+function cerrarDocOP(){
+  document.getElementById('modal-doc-op').style.display = 'none';
+}
+
+// ─── ASIGNACIÓN UID CON DESTINO ─────────────────────────────────────────────
+
+function labelDestino(item, items){
+  const eq = item.equipo_num || 1;
+  const esPlayer = item.notas && item.notas.startsWith('🖥');
+  if(!esPlayer) return `Equipo ${eq} — insumo principal`;
+  // Numerar el player según su posición entre los players del mismo SKU y equipo
+  // items puede ser el array de compatibles del modal, o bomItems global
+  const fuente = items || bomItems;
+  const hermanos = fuente.filter(i =>
+    i.sku_id === item.sku_id &&
+    (i.equipo_num||1) === eq &&
+    i.notas && i.notas.startsWith('🖥')
+  );
+  const idx = hermanos.findIndex(i => i.id === item.id);
+  const numPlayer = idx >= 0 ? idx + 1 : '?';
+  return `Equipo ${eq} — Player ${numPlayer}`;
+}
+
+async function asignarItemUID(item, unidad, uid){
+  const scanArea = document.getElementById('scan-area');
+  try{
+    await api(`op_bom_items?id=eq.${item.id}`, 'PATCH', {
+      estado: 'asignado',
+      uid_asignado: uid
+    });
+    await api(`unidades?id=eq.${unidad.id}`, 'PATCH', {
+      estado: 'reservado',
+      updated_at: new Date().toISOString()
+    });
+    item.estado = 'asignado';
+    item.uid_asignado = uid;
+
+    scanArea.className='scan-area active';
+    setFeedback(`✓ ${unidad.skus?.nombre} → ${labelDestino(item)}`, 'ok');
+    document.getElementById('scan-input').value='';
+    scanBuffer='';
+
+    const ciEl = document.getElementById('ci-'+item.id);
+    if(ciEl) ciEl.classList.add('flash-green');
+
+    actualizarProgreso();
+    renderChecklist();
+    setTimeout(()=>{ scanArea.className='scan-area'; }, 1500);
+    document.getElementById('scan-input').focus();
+  }catch(e){
+    setFeedback('✕ Error: '+e.message, 'err');
+  }
+}
+
+function mostrarModalDestino(items, unidad, uid){
+  // Crear modal dinámico de selección de destino
+  let existing = document.getElementById('modal-destino-uid');
+  if(existing) existing.remove();
+
+  const opciones = items.map((item,idx)=>`
+    <button onclick="elegirDestino(${item.id})" style="
+      display:block;width:100%;text-align:left;padding:10px 14px;margin-bottom:6px;
+      background:var(--panel2);border:1px solid var(--border);border-radius:6px;
+      color:var(--text1);font-size:13px;cursor:pointer;
+    " onmouseover="this.style.borderColor='var(--green)'" onmouseout="this.style.borderColor='var(--border)'">
+      <span style="font-size:10px;color:var(--text3);display:block;margin-bottom:2px;">
+        ${item.notas && item.notas.startsWith('🖥') ? '🖥 PLAYER' : '🔧 INSUMO'}
+      </span>
+      ${labelDestino(item, items)}
+    </button>
+  `).join('');
+
+  const modal = document.createElement('div');
+  modal.id = 'modal-destino-uid';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:9999;';
+  modal.innerHTML = `
+    <div style="background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:20px;width:340px;max-width:90vw;">
+      <div style="font-size:13px;font-weight:600;margin-bottom:4px;">¿A dónde va este insumo?</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:14px;">${unidad.skus?.nombre} · ${uid}</div>
+      ${opciones}
+      <button onclick="cancelarDestino()" style="
+        width:100%;padding:8px;margin-top:4px;background:transparent;
+        border:1px solid var(--border);border-radius:6px;color:var(--text3);
+        font-size:12px;cursor:pointer;
+      ">Cancelar</button>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  // Guardar contexto para cuando el usuario elija
+  window._pendingUID = { items, unidad, uid };
+}
+
+async function elegirDestino(itemId){
+  const modal = document.getElementById('modal-destino-uid');
+  if(modal) modal.remove();
+  const { items, unidad, uid } = window._pendingUID || {};
+  if(!items) return;
+  const item = items.find(i=>i.id===itemId);
+  if(!item) return;
+  await asignarItemUID(item, unidad, uid);
+  window._pendingUID = null;
+}
+
+function cancelarDestino(){
+  const modal = document.getElementById('modal-destino-uid');
+  if(modal) modal.remove();
+  window._pendingUID = null;
+  document.getElementById('scan-input').value='';
+  scanBuffer='';
+  document.getElementById('scan-input').focus();
+}
+</script>
+
+<!-- BARRA DE NAVEGACIÓN PRODUCCIÓN -->
+<style>
+.prodnav{position:fixed;bottom:0;left:0;right:0;z-index:9999;display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 16px;background:rgba(13,17,23,0.97);border-top:1px solid rgba(255,255,255,0.08);backdrop-filter:blur(10px);}
+.prodnav-btn{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);color:#7a8099;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;cursor:pointer;text-decoration:none;transition:all 0.15s;min-width:70px;}
+.prodnav-btn:hover{background:rgba(255,255,255,0.07);color:#e8eaf0;border-color:rgba(255,255,255,0.15);}
+.prodnav-btn.active{background:rgba(0,229,160,0.1);border-color:rgba(0,229,160,0.3);color:#00e5a0;}
+.prodnav-icon{font-size:18px;line-height:1;}
+</style>
+<nav class="prodnav">
+  <a class="prodnav-btn" id="nav-inicio" href="https://ingpussetto-web.github.io/totem-stock/index_produccion.html">
+    <span class="prodnav-icon">🏠</span>Inicio
+  </a>
+  <a class="prodnav-btn" id="nav-produccion" href="https://ingpussetto-web.github.io/totem-stock/produccion.html">
+    <span class="prodnav-icon">🔧</span>Producción
+  </a>
+  <a class="prodnav-btn" id="nav-recepcion" href="https://ingpussetto-web.github.io/totem-stock/recepcion.html">
+    <span class="prodnav-icon">📥</span>Recepción
+  </a>
+  <a class="prodnav-btn" id="nav-stock" href="https://ingpussetto-web.github.io/totem-stock/stock_fase1.html?mode=readonly">
+    <span class="prodnav-icon">📦</span>Stock
+  </a>
+</nav>
+<script>
+// Persistir area en sessionStorage
+(function(){
+  const p = new URLSearchParams(window.location.search);
+  const area = p.get('area');
+  if(area) sessionStorage.setItem('tn_area', area);
+})();
+// Mostrar barra solo si viene desde el área de producción
+(function(){
+  const params = new URLSearchParams(window.location.search);
+  const area = params.get('area') || sessionStorage.getItem('tn_area') || '';
+  const nav = document.querySelector('.prodnav');
+  if(area !== 'produccion'){
+    if(nav) nav.style.display = 'none';
+    return;
+  }
+  // Marcar botón activo según la página actual
+  const page = window.location.pathname.split('/').pop().replace('.html','');
+  const map = {produccion:'nav-produccion', recepcion:'nav-recepcion', stock_fase1:'nav-stock'};
+  const activeId = map[page];
+  if(activeId){ const el = document.getElementById(activeId); if(el) el.classList.add('active'); }
+  document.body.style.paddingBottom = '70px';
+  // Propagar area=produccion a los links de la barra
+  document.querySelectorAll('.prodnav-btn').forEach(a => {
+    const url = new URL(a.href);
+    url.searchParams.set('area', 'produccion');
+    a.href = url.toString();
+  });
+})();
+</script>
+
+
+<!-- BARRA DE NAVEGACIÓN GERENCIA -->
+<style>
+.gernav{position:fixed;bottom:0;left:0;right:0;z-index:9999;display:flex;align-items:center;justify-content:center;gap:6px;padding:8px 12px;background:rgba(8,10,15,0.97);border-top:1px solid rgba(255,255,255,0.08);backdrop-filter:blur(10px);overflow-x:auto;}
+.gernav-btn{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 10px;border-radius:9px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);color:#7a8099;font-family:'DM Sans',sans-serif;font-size:10px;font-weight:500;cursor:pointer;text-decoration:none;transition:all 0.15s;white-space:nowrap;flex-shrink:0;}
+.gernav-btn:hover{background:rgba(255,255,255,0.07);color:#e8eaf0;border-color:rgba(255,255,255,0.15);}
+.gernav-btn.active{background:rgba(0,229,160,0.1);border-color:rgba(0,229,160,0.3);color:#00e5a0;}
+.gernav-icon{font-size:16px;line-height:1;}
+</style>
+<nav class="gernav">
+  <a class="gernav-btn" id="gnav-inicio" href="https://ingpussetto-web.github.io/totem-stock/index.html"><span class="gernav-icon">🏠</span>Inicio</a>
+  <a class="gernav-btn" id="gnav-cotizador" href="https://ingpussetto-web.github.io/totem-stock/calculador_totem_nube_v16.html"><span class="gernav-icon">💰</span>Cotizador</a>
+  <a class="gernav-btn" id="gnav-ops" href="https://ingpussetto-web.github.io/totem-stock/ops_ventas.html"><span class="gernav-icon">✅</span>OPs</a>
+  <a class="gernav-btn" id="gnav-compras" href="https://ingpussetto-web.github.io/totem-stock/compras.html"><span class="gernav-icon">🛒</span>Compras</a>
+  <a class="gernav-btn" id="gnav-recepcion" href="https://ingpussetto-web.github.io/totem-stock/recepcion.html"><span class="gernav-icon">📥</span>Recepción</a>
+  <a class="gernav-btn" id="gnav-stock" href="https://ingpussetto-web.github.io/totem-stock/stock_fase1.html"><span class="gernav-icon">📦</span>Stock</a>
+  <a class="gernav-btn" id="gnav-produccion" href="https://ingpussetto-web.github.io/totem-stock/produccion.html"><span class="gernav-icon">🔧</span>Producción</a>
+  <a class="gernav-btn" id="gnav-inventario" href="https://ingpussetto-web.github.io/totem-stock/inventario_inicial.html"><span class="gernav-icon">🏷</span>Inventario</a>
+  <a class="gernav-btn" id="gnav-noticias" href="https://ingpussetto-web.github.io/totem-stock/noticias.html"><span class="gernav-icon">📢</span>Noticias</a>
+</nav>
+<script>
+(function(){
+  const params = new URLSearchParams(window.location.search);
+  const area = params.get('area') || sessionStorage.getItem('tn_area') || '';
+  const nav = document.querySelector('.gernav');
+  if(area !== 'gerencia'){ if(nav) nav.style.display='none'; return; }
+  const page = window.location.pathname.split('/').pop().replace('.html','');
+  const map = {'calculador_totem_nube_v16':'gnav-cotizador','ops_ventas':'gnav-ops','compras':'gnav-compras','recepcion':'gnav-recepcion','stock_fase1':'gnav-stock','produccion':'gnav-produccion','inventario_inicial':'gnav-inventario','noticias':'gnav-noticias'};
+  const activeId = map[page];
+  if(activeId){ const el=document.getElementById(activeId); if(el) el.classList.add('active'); }
+  document.body.style.paddingBottom = '70px';
+  document.querySelectorAll('.gernav-btn').forEach(a => {
+    if(a.href && !a.href.includes('index.html')){
+      try{ const url=new URL(a.href); url.searchParams.set('area','gerencia'); a.href=url.toString(); }catch(e){}
+    }
+  });
+})();
+</script>
+
+<!-- ═══ MODAL NOTAS DE PROYECTO ═══ -->
+<div id="modal-notas" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9600;align-items:flex-start;justify-content:center;overflow-y:auto;padding:20px;">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:100%;max-width:680px;margin:auto;overflow:hidden;">
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border);">
+      <div>
+        <div style="font-size:15px;font-weight:600;" id="notas-titulo">Notas del proyecto</div>
+        <div style="font-size:11px;color:var(--text2);font-family:'DM Mono',monospace;margin-top:2px;" id="notas-subtitulo"></div>
+      </div>
+      <button onclick="cerrarNotas()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text2);padding:6px 12px;cursor:pointer;font-size:13px;">✕</button>
+    </div>
+
+    <!-- Feed de notas -->
+    <div id="notas-feed" style="max-height:380px;overflow-y:auto;padding:18px 22px;display:flex;flex-direction:column;gap:14px;">
+      <div style="text-align:center;color:var(--text3);font-size:12px;padding:20px;">Cargando notas...</div>
+    </div>
+
+    <!-- Formulario nueva nota -->
+    <div style="border-top:1px solid var(--border);padding:18px 22px;background:var(--surface2);">
+      <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;font-family:'DM Mono',monospace;margin-bottom:10px;">Nueva nota</div>
+      
+      <!-- Autor -->
+      <div style="display:flex;gap:10px;margin-bottom:10px;">
+        <input id="nota-autor" type="text" placeholder="Tu nombre..." 
+          style="flex:1;padding:8px 12px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;">
+        <select id="nota-etiqueta" style="padding:8px 10px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;color:var(--text2);font-size:12px;cursor:pointer;">
+          <option value="">Sin etiqueta</option>
+          <option value="📦 Insumos">📦 Insumos</option>
+          <option value="⚠️ Problema">⚠️ Problema</option>
+          <option value="✅ Resuelto">✅ Resuelto</option>
+          <option value="📞 Cliente">📞 Cliente</option>
+          <option value="📝 General">📝 General</option>
+        </select>
+      </div>
+
+      <!-- Texto -->
+      <textarea id="nota-texto" rows="3" placeholder="Escribí tu nota acá..."
+        style="width:100%;padding:10px 12px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;resize:vertical;margin-bottom:10px;"></textarea>
+
+      <!-- Archivos -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+        <label for="nota-archivos" style="display:flex;align-items:center;gap:6px;padding:7px 12px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;color:var(--text2);font-size:12px;cursor:pointer;">
+          📎 Adjuntar archivos
+        </label>
+        <input id="nota-archivos" type="file" multiple style="display:none;" onchange="mostrarArchivosSeleccionados()">
+        <div id="archivos-seleccionados" style="font-size:11px;color:var(--text3);"></div>
+      </div>
+
+      <!-- Botón publicar -->
+      <button id="btn-publicar-nota" onclick="publicarNota()" 
+        style="width:100%;padding:10px;background:var(--green);color:#000;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">
+        Publicar nota
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── NOTAS DE PROYECTO ────────────────────────────────────────────────
+const SUPABASE_URL = 'https://nkkwukcgxyhudprlhjjw.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ra3d1a2NneHlodWRwcmxoamp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwMjAzNTQsImV4cCI6MjA5MzU5NjM1NH0.NGDzPGnChtqYbnjcIZhso1CUozqG_JQ7TyElKSesy5s';
+const STORAGE_BUCKET = 'op-notas-archivos';
+
+let _notasOpId = null;
+let _notasOpNumero = '';
+
+async function apiNotas(path, method='GET', body=null){
+  const opts = { method, headers: {'apikey': SUPABASE_KEY, 'Authorization': 'Bearer '+SUPABASE_KEY, 'Content-Type':'application/json', 'Prefer':'return=representation'} };
+  if(body) opts.body = JSON.stringify(body);
+  const r = await fetch(SUPABASE_URL+'/rest/v1/'+path, opts);
+  if(!r.ok){ const e=await r.text(); throw new Error(e); }
+  return r.status===204 ? null : r.json();
+}
+
+async function cargarBadgesNotas(opIds){
+  if(!opIds.length) return;
+  try{
+    const data = await apiNotas(`op_notas?op_id=in.(${opIds.join(',')})&select=op_id`);
+    const conteos = {};
+    (data||[]).forEach(n=>{ conteos[n.op_id]=(conteos[n.op_id]||0)+1; });
+    opIds.forEach(id=>{
+      const badge = document.getElementById('badge-notas-'+id);
+      const btn = document.getElementById('btn-notas-'+id);
+      if(badge && conteos[id]){
+        badge.textContent = conteos[id];
+        badge.style.display='inline';
+        if(btn) btn.style.color='var(--green)';
+      }
+    });
+  }catch(e){ console.warn('Error cargando badges notas:', e.message); }
+}
+
+async function abrirNotas(opId, opNumero, cliente){
+  _notasOpId = opId;
+  _notasOpNumero = opNumero;
+  document.getElementById('notas-titulo').textContent = cliente;
+  document.getElementById('notas-subtitulo').textContent = opNumero;
+  // Restaurar autor guardado
+  const autorGuardado = localStorage.getItem('tn_nota_autor') || '';
+  document.getElementById('nota-autor').value = autorGuardado;
+  document.getElementById('nota-texto').value = '';
+  document.getElementById('nota-etiqueta').value = '';
+  document.getElementById('archivos-seleccionados').textContent = '';
+  document.getElementById('nota-archivos').value = '';
+  document.getElementById('modal-notas').style.display = 'flex';
+  await renderFeedNotas();
+}
+
+function cerrarNotas(){
+  document.getElementById('modal-notas').style.display = 'none';
+  _notasOpId = null;
+}
+
+function mostrarArchivosSeleccionados(){
+  const files = document.getElementById('nota-archivos').files;
+  const div = document.getElementById('archivos-seleccionados');
+  if(!files.length){ div.textContent=''; return; }
+  div.textContent = Array.from(files).map(f=>f.name).join(', ');
+}
+
+async function renderFeedNotas(){
+  const feed = document.getElementById('notas-feed');
+  feed.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;padding:20px;">Cargando...</div>';
+  try{
+    const notas = await apiNotas(`op_notas?op_id=eq.${_notasOpId}&select=*,op_notas_archivos(*)&order=created_at.asc`);
+    if(!notas||!notas.length){
+      feed.innerHTML='<div style="text-align:center;color:var(--text3);font-size:12px;padding:30px;">Sin notas todavía. ¡Sé el primero en dejar una!</div>';
+      return;
+    }
+    feed.innerHTML = notas.map(n=>{
+      const fecha = new Date(n.created_at).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+      const etiquetaHTML = n.etiqueta ? `<span style="font-size:10px;background:var(--surface3);border:1px solid var(--border2);border-radius:4px;padding:1px 6px;margin-left:6px;">${n.etiqueta}</span>` : '';
+      const archivosHTML = (n.op_notas_archivos||[]).map(a=>`
+        <a href="${a.url}" target="_blank" 
+          style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--blue);text-decoration:none;background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:3px 8px;margin-top:6px;margin-right:4px;">
+          📎 ${a.nombre_archivo}
+        </a>`).join('');
+      return `<div id="nota-card-${n.id}" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;position:relative;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <span style="font-size:12px;font-weight:600;color:var(--text);">${n.autor}</span>
+          ${etiquetaHTML}
+          <span style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;margin-left:auto;">${fecha}</span>
+          <button onclick="editarNota(${n.id})" title="Editar nota"
+            style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;padding:2px 6px;border-radius:4px;line-height:1;"
+            onmouseover="this.style.color='var(--blue)'" onmouseout="this.style.color='var(--text3)'">✏</button>
+          <button onclick="borrarNota(${n.id})" title="Eliminar nota"
+            style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;padding:2px 6px;border-radius:4px;line-height:1;"
+            onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--text3)'">✕</button>
+        </div>
+        <div id="nota-texto-${n.id}" style="font-size:13px;color:var(--text);line-height:1.5;white-space:pre-wrap;">${n.texto||''}</div>
+        <div id="nota-edit-${n.id}" style="display:none;margin-top:8px;">
+          <textarea id="nota-edit-input-${n.id}" style="width:100%;min-height:80px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:8px;font-size:13px;color:var(--text);resize:vertical;box-sizing:border-box;">${n.texto||''}</textarea>
+          <div style="display:flex;gap:8px;margin-top:6px;">
+            <button onclick="guardarEdicionNota(${n.id})"
+              style="background:var(--green);color:#fff;border:none;border-radius:6px;padding:5px 14px;font-size:12px;cursor:pointer;">Guardar</button>
+            <button onclick="cancelarEdicionNota(${n.id})"
+              style="background:var(--surface);border:1px solid var(--border2);border-radius:6px;padding:5px 14px;font-size:12px;color:var(--text2);cursor:pointer;">Cancelar</button>
+          </div>
+        </div>
+        ${archivosHTML}
+      </div>`;
+    }).join('');
+    // Scroll al final
+    feed.scrollTop = feed.scrollHeight;
+  }catch(e){
+    feed.innerHTML=`<div style="color:var(--red);padding:20px;font-size:12px;">Error: ${e.message}</div>`;
+  }
+}
+
+function editarNota(notaId){
+  const textoEl = document.getElementById('nota-texto-'+notaId);
+  const textoActual = textoEl ? textoEl.textContent : '';
+  textoEl.style.display = 'none';
+  document.getElementById('nota-edit-'+notaId).style.display = 'block';
+  const inp = document.getElementById('nota-edit-input-'+notaId);
+  if(inp){ inp.value = textoActual; inp.focus(); }
+}
+
+function cancelarEdicionNota(notaId){
+  document.getElementById('nota-texto-'+notaId).style.display = 'block';
+  document.getElementById('nota-edit-'+notaId).style.display = 'none';
+}
+
+async function guardarEdicionNota(notaId){
+  const inp = document.getElementById('nota-edit-input-'+notaId);
+  if(!inp) return;
+  const nuevoTexto = inp.value.trim();
+  if(!nuevoTexto){ alert('El texto no puede estar vacío.'); return; }
+  try{
+    await apiNotas(`op_notas?id=eq.${notaId}`, 'PATCH', { texto: nuevoTexto });
+    // Actualizar inline sin recargar todo el feed
+    document.getElementById('nota-texto-'+notaId).textContent = nuevoTexto;
+    cancelarEdicionNota(notaId);
+  }catch(e){ alert('Error al guardar: '+e.message); }
+}
+
+async function borrarNota(notaId){
+  if(!confirm('¿Eliminar esta nota?')) return;
+  try{
+    // Borrar archivos asociados primero
+    await apiNotas(`op_notas_archivos?nota_id=eq.${notaId}`, 'DELETE');
+    // Borrar nota
+    await apiNotas(`op_notas?id=eq.${notaId}`, 'DELETE');
+    await renderFeedNotas();
+    // Actualizar badge
+    const badge = document.getElementById('badge-notas-'+_notasOpId);
+    if(badge){
+      const actual = parseInt(badge.textContent)||0;
+      const nuevo = Math.max(0, actual-1);
+      badge.textContent = nuevo;
+      if(nuevo === 0) badge.style.display='none';
+    }
+  }catch(e){ alert('Error al eliminar: '+e.message); }
+}
+
+async function publicarNota(){
+  const autor = document.getElementById('nota-autor').value.trim();
+  const texto = document.getElementById('nota-texto').value.trim();
+  const etiqueta = document.getElementById('nota-etiqueta').value;
+  const files = document.getElementById('nota-archivos').files;
+
+  if(!autor){ alert('Ingresá tu nombre antes de publicar.'); return; }
+  if(!texto && !files.length){ alert('Escribí algo o adjuntá un archivo.'); return; }
+
+  localStorage.setItem('tn_nota_autor', autor);
+
+  const btn = document.getElementById('btn-publicar-nota');
+  btn.disabled = true;
+  btn.textContent = 'Publicando...';
+  try{
+    const nuevaNota = await apiNotas('op_notas', 'POST', [{
+      op_id: _notasOpId,
+      autor,
+      texto,
+      etiqueta: etiqueta || null
+    }]);
+    const notaId = nuevaNota?.[0]?.id;
+
+    // Subir archivos si los hay
+    if(files.length && notaId){
+      for(const file of files){
+        const path2 = `${_notasOpId}/${notaId}/${file.name}`;
+        const uploadRes = await fetch(`${SUPABASE_URL}/storage/v1/object/${STORAGE_BUCKET}/${path2}`, {
+          method: 'POST',
+          headers: {'apikey': SUPABASE_KEY, 'Authorization': 'Bearer '+SUPABASE_KEY},
+          body: file
+        });
+        if(uploadRes.ok){
+          const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${path2}`;
+          await apiNotas('op_notas_archivos', 'POST', [{
+            nota_id: notaId,
+            nombre_archivo: file.name,
+            url: publicUrl
+          }]);
+        }
+      }
+    }
+
+    // Limpiar form
+    document.getElementById('nota-texto').value = '';
+    document.getElementById('nota-archivos').value = '';
+    document.getElementById('archivos-seleccionados').textContent = '';
+
+    await renderFeedNotas();
+
+    // Actualizar badge
+    const badge = document.getElementById('badge-notas-'+_notasOpId);
+    const btnNotas = document.getElementById('btn-notas-'+_notasOpId);
+    if(badge){
+      const actual = parseInt(badge.textContent)||0;
+      badge.textContent = actual+1;
+      badge.style.display='inline';
+      if(btnNotas) btnNotas.style.color='var(--green)';
+    }
+  }catch(e){
+    alert('Error al publicar: '+e.message);
+  }finally{
+    btn.disabled = false;
+    btn.textContent = 'Publicar nota';
+  }
+}
+
+function cerrarNotas(){
+  document.getElementById('modal-notas').style.display = 'none';
+  _notasOpId = null;
+  _notasOpNumero = '';
+}
+
+function mostrarArchivosSeleccionados(){
+  const files = document.getElementById('nota-archivos').files;
+  const el = document.getElementById('archivos-seleccionados');
+  if(!files.length){ el.textContent = ''; return; }
+  el.textContent = Array.from(files).map(f=>f.name).join(', ');
+}
+
+async function guardarEdicionNota(notaId){
+  const inp = document.getElementById('nota-edit-input-'+notaId);
+  if(!inp) return;
+  const nuevoTexto = inp.value.trim();
+  try{
+    await apiNotas(`op_notas?id=eq.${notaId}`, 'PATCH', {texto: nuevoTexto});
+    document.getElementById('nota-texto-'+notaId).textContent = nuevoTexto;
+    cancelarEdicionNota(notaId);
+  }catch(e){ alert('Error al guardar: '+e.message); }
+}
+</script>
