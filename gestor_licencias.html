@@ -1624,7 +1624,7 @@ async function editarCliente(id){
         .map(t=>`<option value="${t}" ${t===sel?'selected':''}>${{turnero:'Turnero',publicidad:'Publicidad digital',ia:'Agente IA',autogestion:'Autogestión y pagos',cuos_atencion:'CUOS Atención remota',cuos_vigilancia:'CUOS Vigilancia',agro:'Agro'}[t]}</option>`).join('');
       const cuentasOpts = (sel)=>['totem_nube','gestion_play','validar','carlos_pussetto','validar_cp']
         .map(c=>`<option value="${c}" ${c===sel?'selected':''}>${{totem_nube:'Totem Nube',gestion_play:'Gestion Play',validar:'Validar GP',carlos_pussetto:'Carlos Pussetto',validar_cp:'Validar CP'}[c]}</option>`).join('');
-      const estadosOpts = (sel)=>['activa','inactiva','en_proceso']
+      const estadosOpts = (sel)=>['activa','inactiva','en_proceso','dada_de_baja']
         .map(e=>`<option value="${e}" ${e===sel?'selected':''}>${ESTADO_LABEL[e]||e}</option>`).join('');
 
       lics.forEach(l=>{
