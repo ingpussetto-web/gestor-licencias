@@ -3424,4 +3424,72 @@ async function loadDashboard(){
       options: {
         responsive:true, maintainAspectRatio:true,
         plugins:{
-          legend:{ position:'bottom', labels:{ color:'#aa
+          legend:{ position:'bottom', labels:{ color:'#aaa', font:{size:10}, boxWidth:10 } },
+          tooltip:{
+            callbacks:{
+              label: ctx => ` ${ctx.label}: $${fmt(ctx.raw)} (${mrr?(ctx.raw/mrr*100).toFixed(1):0}%)`
+            }
+          }
+        }
+      }
+    });
+
+    // ── BLOQUE 5: Top 10 clientes ────────────────────────────
+    const facMesMapa = {};
+    facMes.forEach(f=>{
+      const nombre = f.cuenta==='validar'?'VALIDAR GP (consolidado)':f.cuenta==='validar_cp'?'VALIDAR CP (consolidado)':f.clientes?.nombre||'—';
+      const key    = f.cliente_id+'|'+f.cuenta;
+      if(!facMesMapa[key]) facMesMapa[key]={ nombre, cuenta:f.cuenta, monto:0 };
+      facMesMapa[key].monto += (f.monto_total||0);
+    });
+    const topClientes = Object.values(facMesMapa).sort((a,b)=>b.monto-a.monto).slice(0,10);
+
+    const COB_LABEL = {totem_nube:'Totem Nube',gestion_play:'Gestion Play',validar:'Validar GP',carlos_pussetto:'Carlos Pussetto',validar_cp:'Validar CP'};
+    const COB_BADGE = {totem_nube:'badge-amber',gestion_play:'badge-blue',validar:'badge-green',carlos_pussetto:'badge-purple',validar_cp:'badge-red'};
+    const topBody = document.getElementById('dash-top-body');
+    if(topClientes.length){
+      const mrrMax = topClientes[0].monto;
+      topBody.innerHTML = topClientes.map((c,i)=>`
+        <tr>
+          <td style="color:var(--text3);font-size:11px;">${i+1}</td>
+          <td>
+            <strong>${c.nombre}</strong>
+            <div style="height:3px;background:var(--border2);border-radius:2px;margin-top:4px;width:100%;">
+              <div style="height:3px;background:var(--accent);border-radius:2px;width:${(c.monto/mrrMax*100).toFixed(0)}%;"></div>
+            </div>
+          </td>
+          <td><span class="badge ${COB_BADGE[c.cuenta]||'badge-gray'}">${COB_LABEL[c.cuenta]||c.cuenta}</span></td>
+          <td style="text-align:right;font-family:'DM Mono',monospace;font-weight:600;color:var(--accent);">$${fmt(c.monto)}</td>
+          <td style="text-align:right;font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);">$${fmt(c.monto*1.21)}</td>
+          <td style="text-align:right;font-size:11px;color:var(--text3);">${(c.monto/mrr*100).toFixed(1)}%</td>
+        </tr>`).join('');
+    } else {
+      topBody.innerHTML = '<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--text3);">Sin datos para este mes</td></tr>';
+    }
+
+  }catch(e){ toast('Error cargando dashboard: '+e.message); }
+}
+
+
+async function init(){
+  if(MODO_PROVEEDOR){
+    document.body.classList.add('modo-proveedor');
+    // Indicador visual en el header
+    const brand = document.querySelector('.brand') || document.querySelector('.sidebar-brand');
+    if(brand) brand.insertAdjacentHTML('afterend','<div style="font-size:10px;font-weight:700;color:var(--amber);letter-spacing:.08em;text-transform:uppercase;padding:2px 8px;background:rgba(180,120,0,.12);border-radius:4px;margin-top:4px;">Modo lectura</div>');
+  }
+  document.getElementById('cfg-url').value = SUPA_URL;
+  document.getElementById('cfg-key').value = SUPA_KEY;
+  generarPeriodos();
+  const ok = await checkConnection();
+  if(ok){
+    showPage('dashboard');
+    checkMigraciones();
+  }
+  else if(!SUPA_URL||!SUPA_KEY) showPage('config');
+}
+init();
+</script>
+
+</body>
+</html>
