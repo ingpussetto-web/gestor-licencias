@@ -1796,6 +1796,7 @@ async function guardarCliente(){
 
 // ── LICENCIAS ────────────────────────────────────────────────
 let _licenciasData = [];
+let _facturaMesMap = {};
 // ── EVOLUCIÓN MENSUAL LICENCIAS ──────────────────────────────
 const EVOL_INICIO = '2026-06'; // Mostrar desde este período en adelante
 let _evolucionModo   = 'facturacion'; // 'facturacion' | 'licencias'
@@ -1997,14 +1998,23 @@ async function loadLicencias(){
   const tbody = document.getElementById('licencias-tbody');
   tbody.innerHTML = '<tr><td colspan="7"><div class="loading"><span class="spinner"></span>Cargando...</div></td></tr>';
   try{
-    const data = await api('licencias?select=id,cliente_id,tipo,cuenta,descripcion,precio_actual,moneda,estado,fecha_alta,parametros,notas,clientes(nombre)&order=clientes(nombre).asc');
+    const hoy = new Date();
+    const mesActual = `${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}`;
+    const [data, facMes, clientes] = await Promise.all([
+      api('licencias?select=id,cliente_id,tipo,cuenta,descripcion,precio_actual,moneda,estado,fecha_alta,parametros,notas,clientes(nombre)&order=clientes(nombre).asc'),
+      api(`facturas?periodo=eq.${mesActual}&select=cuenta,monto_total`).catch(()=>[]),
+      getClientes()
+    ]);
     _licenciasData = data||[];
-    
-    // Poblar selector de clientes en modal
-    const clientes = await getClientes();
+
+    _facturaMesMap = {};
+    (facMes||[]).forEach(f => {
+      _facturaMesMap[f.cuenta] = (_facturaMesMap[f.cuenta]||0) + (f.monto_total||0);
+    });
+
     const selCli = document.getElementById('lic-cliente');
     selCli.innerHTML = clientes.filter(c=>c.activo).map(c=>`<option value="${c.id}">${c.nombre}</option>`).join('');
-    
+
     filtrarLicencias();
   }catch(e){ tbody.innerHTML=`<tr><td colspan="7"><div class="empty">Error: ${e.message}</div></td></tr>`; }
 }
@@ -2096,11 +2106,14 @@ function filtrarLicencias(){
 function renderLicenciasStats(filtered){
   const cuentas = getMsValues('cuenta');
   const estados = getMsValues('estado');
-  const totalAllARS = _licenciasData.filter(l=>l.estado==='activa'&&l.moneda==='ARS').reduce((s,l)=>s+(l.precio_actual||0),0);
   const pct = (n, total) => total>0
     ? `<span style="font-size:11px;color:var(--text3);font-weight:400;margin-left:5px;">${(n/total*100).toFixed(1)}%</span>`
     : '';
-  const totalARS = filtered.filter(l=>l.moneda==='ARS').reduce((s,l)=>s+(l.precio_actual||0),0);
+  const cuentasToShow2 = cuentas.length === 0
+    ? ['totem_nube','gestion_play','validar','carlos_pussetto','validar_cp']
+    : cuentas;
+  const totalFactARS = cuentasToShow2.reduce((s,c) => s+(_facturaMesMap[c]||0), 0);
+  const totalARS = totalFactARS;
   const totalUSD = filtered.filter(l=>l.moneda==='USD').reduce((s,l)=>s+(l.precio_actual||0),0);
 
   // Hero label según estado(s) seleccionados
@@ -2135,7 +2148,7 @@ function renderLicenciasStats(filtered){
   let html = '';
   for(const c of cuentasToShow){
     const ca = filtered.filter(l=>l.cuenta===c.key);
-    const ct = ca.filter(l=>l.moneda==='ARS').reduce((s,l)=>s+(l.precio_actual||0),0);
+    const ct = _facturaMesMap[c.key] || 0;
     html += `<div class="stat-card"><div class="stat-val" style="color:${c.color};">${ca.length}${pct(ca.length,filtered.length)}</div><div class="stat-label">${c.label}</div></div>`;
     html += `<div class="stat-card"><div class="stat-val" style="color:${c.color};">$${fmt(ct)}${pct(ct,totalARS)}</div><div class="stat-label">${c.label} ARS</div></div>`;
   }
