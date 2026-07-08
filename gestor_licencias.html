@@ -1928,14 +1928,12 @@ async function loadEvolucion(){
       }
       periodos.reverse();
 
-      // Para cada período, contar licencias con fecha_alta <= fin del período
-      // y que no estén dadas de baja (aproximación: estado !== 'dada_de_baja')
-      // Nota: sin fecha_baja, las licencias dadas de baja en el futuro se descuentan para todos los meses
+      // Para cada período, contar licencias con fecha_alta <= fin del período y estado activa
+      // Nota: sin historial de estado, usamos el estado actual como aproximación
       function countLics(periodo){
-        const finMes = periodo + '-31'; // alcanza para comparar YYYY-MM
         const activas = licencias.filter(l =>
           l.fecha_alta && l.fecha_alta.substring(0,7) <= periodo &&
-          l.estado !== 'dada_de_baja'
+          l.estado === 'activa'
         );
         const porCuenta = {};
         activas.forEach(l => { porCuenta[l.cuenta] = (porCuenta[l.cuenta]||0)+1; });
