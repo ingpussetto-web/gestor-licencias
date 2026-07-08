@@ -1085,13 +1085,17 @@ tr:hover td { background: var(--bg2); }
     </div>
     <div class="form-row">
       <div class="form-group">
-        <label class="form-label">Fecha alta</label>
+        <label class="form-label">Fecha Registro Alta</label>
         <input class="form-input" type="date" id="lic-fecha-alta">
       </div>
       <div class="form-group">
-        <label class="form-label">Puestos / Pantallas</label>
-        <input class="form-input" type="text" id="lic-params" placeholder="Ej: 3 puestos, 2 pantallas">
+        <label class="form-label">Fecha Inicio Cobranza</label>
+        <input class="form-input" type="date" id="lic-fecha-inicio-cob">
       </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Puestos / Pantallas</label>
+      <input class="form-input" type="text" id="lic-params" placeholder="Ej: 3 puestos, 2 pantallas">
     </div>
     <div class="form-group">
       <label class="form-label">Notas</label>
@@ -2001,7 +2005,7 @@ async function loadLicencias(){
     const hoy = new Date();
     const mesActual = `${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}`;
     const [data, facMes, clientes] = await Promise.all([
-      api('licencias?select=id,cliente_id,tipo,cuenta,descripcion,precio_actual,moneda,estado,fecha_alta,parametros,notas,clientes(nombre)&order=clientes(nombre).asc'),
+      api('licencias?select=id,cliente_id,tipo,cuenta,descripcion,precio_actual,moneda,estado,fecha_alta,fecha_inicio_cobranza,parametros,notas,clientes(nombre)&order=clientes(nombre).asc'),
       api(`facturas?periodo=eq.${mesActual}&select=cuenta,monto_total`).catch(()=>[]),
       getClientes()
     ]);
@@ -2308,6 +2312,7 @@ function abrirModalLicencia(){
   document.getElementById('lic-estado').value='activa';
   document.getElementById('lic-moneda').value='ARS';
   document.getElementById('lic-fecha-alta').value=new Date().toISOString().split('T')[0];
+  document.getElementById('lic-fecha-inicio-cob').value='';
   actualizarBrutoLic();
   abrirModal('modal-licencia');
 }
@@ -2324,6 +2329,7 @@ async function editarLicencia(id){
   document.getElementById('lic-precio').value = l.precio_actual||'';
   document.getElementById('lic-moneda').value = l.moneda||'ARS';
   document.getElementById('lic-fecha-alta').value = l.fecha_alta||'';
+  document.getElementById('lic-fecha-inicio-cob').value = l.fecha_inicio_cobranza||'';
   document.getElementById('lic-params').value = l.parametros?.descripcion||'';
   document.getElementById('lic-notas').value = l.notas||'';
   actualizarBrutoLic();
@@ -2344,6 +2350,7 @@ async function guardarLicencia(){
     precio_actual,
     moneda: document.getElementById('lic-moneda').value,
     fecha_alta: document.getElementById('lic-fecha-alta').value||null,
+    fecha_inicio_cobranza: document.getElementById('lic-fecha-inicio-cob').value||null,
     parametros: params_txt ? {descripcion: params_txt} : {},
     notas: document.getElementById('lic-notas').value.trim()
   };
@@ -3109,14 +3116,15 @@ async function sincronizarCobranzas(periodo){
 
     // 4. Licencias activas en ARS activas en este período
     const licencias = await api(
-      'licencias?estado=eq.activa&moneda=eq.ARS&select=id,cliente_id,precio_actual,cuenta,fecha_alta'
+      'licencias?estado=eq.activa&moneda=eq.ARS&select=id,cliente_id,precio_actual,cuenta,fecha_alta,fecha_inicio_cobranza'
     ).catch(()=>[]);
     if(!licencias?.length){ if(syncEl) syncEl.style.display='none'; return; }
 
     const licsDelPeriodo = licencias.filter(l => {
-      if(!l.fecha_alta) return true;
-      // Comparar solo YYYY-MM para evitar problemas de hora/timezone
-      return l.fecha_alta.substring(0,7) <= periodo;
+      const fechaFiltro = l.fecha_inicio_cobranza || l.fecha_alta;
+      if(!fechaFiltro) return true;
+      // Usar fecha_inicio_cobranza si existe, sino fecha_alta
+      return fechaFiltro.substring(0,7) <= periodo;
     });
 
     // 5. Cobranzas existentes del período con sus estados
