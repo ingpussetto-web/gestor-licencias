@@ -2349,11 +2349,16 @@ async function editarLicencia(id){
   actualizarBrutoLic();
   abrirModal('modal-licencia');
 }
+let _guardandoLicencia = false;
 async function guardarLicencia(){
+  if(_guardandoLicencia) return;
   const cliente_id = document.getElementById('lic-cliente').value;
   const precio_actual = parseFloat(document.getElementById('lic-precio').value);
   if(!cliente_id){ toast('Seleccioná un cliente'); return; }
   if(isNaN(precio_actual)){ toast('Ingresá un precio válido'); return; }
+  _guardandoLicencia = true;
+  const btnGuardar = document.querySelector('#modal-licencia .btn.primary');
+  if(btnGuardar){ btnGuardar.disabled = true; btnGuardar.textContent = 'Guardando...'; }
   const params_txt = document.getElementById('lic-params').value.trim();
   const data = {
     cliente_id: parseInt(cliente_id),
@@ -2395,7 +2400,13 @@ async function guardarLicencia(){
     }
     cerrarModal('modal-licencia');
     loadLicencias();
-  }catch(e){ toast('Error: '+e.message); }
+  }catch(e){
+    toast('Error: '+e.message);
+  }finally{
+    _guardandoLicencia = false;
+    const btnGuardar = document.querySelector('#modal-licencia .btn.primary');
+    if(btnGuardar){ btnGuardar.disabled = false; btnGuardar.textContent = 'Guardar'; }
+  }
 }
 
 // ── GENERACIÓN RETROACTIVA DE COBRANZAS ──────────────────────
