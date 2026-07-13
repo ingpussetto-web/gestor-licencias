@@ -2112,7 +2112,7 @@ function renderLicenciasStats(filtered){
   const pct = (n, total) => total>0
     ? `<span style="font-size:11px;color:var(--text3);font-weight:400;margin-left:5px;">${(n/total*100).toFixed(1)}%</span>`
     : '';
-  const hasDetailFilter = tipos.length > 0 || estados.length > 0;
+  const hasDetailFilter = tipos.length > 0;
   const cuentasToShow2 = cuentas.length === 0
     ? ['totem_nube','gestion_play','validar','carlos_pussetto','validar_cp']
     : cuentas;
