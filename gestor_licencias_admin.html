@@ -2120,7 +2120,7 @@ function renderLicenciasStats(filtered){
   // Si hay filtro de tipo o estado, las facturas no se pueden filtrar por esos campos
   // → usamos precio_actual del conjunto filtrado. Si no hay filtros de detalle, usamos
   // _facturaMesMap (fuente unificada con la tabla de evolución).
-  const hasDetailFilter = tipos.length > 0 || estados.length > 0;
+  const hasDetailFilter = tipos.length > 0;
   const cuentasToShow2 = cuentas.length === 0
     ? ['totem_nube','gestion_play','validar','carlos_pussetto','validar_cp']
     : cuentas;
