@@ -2112,13 +2112,7 @@ function renderLicenciasStats(filtered){
   const pct = (n, total) => total>0
     ? `<span style="font-size:11px;color:var(--text3);font-weight:400;margin-left:5px;">${(n/total*100).toFixed(1)}%</span>`
     : '';
-  const hasDetailFilter = tipos.length > 0;
-  const cuentasToShow2 = cuentas.length === 0
-    ? ['totem_nube','gestion_play','validar','carlos_pussetto','validar_cp']
-    : cuentas;
-  const totalARS = hasDetailFilter
-    ? filtered.filter(l=>l.moneda==='ARS').reduce((s,l)=>s+(l.precio_actual||0),0)
-    : cuentasToShow2.reduce((s,c)=>s+(_facturaMesMap[c]||0),0);
+  const totalARS = filtered.filter(l=>l.moneda==='ARS').reduce((s,l)=>s+(l.precio_actual||0),0);
   const totalUSD = filtered.filter(l=>l.moneda==='USD').reduce((s,l)=>s+(l.precio_actual||0),0);
 
   // Hero label según estado(s) seleccionados
@@ -2153,9 +2147,7 @@ function renderLicenciasStats(filtered){
   let html = '';
   for(const c of cuentasToShow){
     const ca = filtered.filter(l=>l.cuenta===c.key);
-    const ct = hasDetailFilter
-      ? ca.filter(l=>l.moneda==='ARS').reduce((s,l)=>s+(l.precio_actual||0),0)
-      : (_facturaMesMap[c.key] || 0);
+    const ct = ca.filter(l=>l.moneda==='ARS').reduce((s,l)=>s+(l.precio_actual||0),0);
     html += `<div class="stat-card"><div class="stat-val" style="color:${c.color};">${ca.length}${pct(ca.length,filtered.length)}</div><div class="stat-label">${c.label}</div></div>`;
     html += `<div class="stat-card"><div class="stat-val" style="color:${c.color};">$${fmt(ct)}${pct(ct,totalARS)}</div><div class="stat-label">${c.label} ARS</div></div>`;
   }
