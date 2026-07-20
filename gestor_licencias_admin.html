@@ -743,7 +743,8 @@ tr:hover td { background: var(--bg2); }
         </div>
         <div class="hero-stats" id="licencias-hero"></div>
         <div style="display:flex;gap:8px;align-items:center;">
-          <div style="display:flex;gap:4px;border:1px solid var(--border);border-radius:8px;padding:2px;background:var(--surface2);">
+          <button class="btn" onclick="exportarLicenciasExcel()" style="font-size:12px;" title="Exportar a Excel">⬇ Exportar</button>
+        <div style="display:flex;gap:4px;border:1px solid var(--border);border-radius:8px;padding:2px;background:var(--surface2);">
             <button id="btn-evol-fact" onclick="toggleEvolucion('facturacion')" style="font-size:11px;padding:5px 10px;border:none;border-radius:6px;cursor:pointer;background:var(--accent);color:#fff;font-weight:600;">$ Facturación</button>
             <button id="btn-evol-lics" onclick="toggleEvolucion('licencias')" style="font-size:11px;padding:5px 10px;border:none;border-radius:6px;cursor:pointer;background:transparent;color:var(--text3);">🔑 Licencias</button>
           </div>
@@ -867,6 +868,7 @@ tr:hover td { background: var(--bg2); }
           <select class="form-select" style="width:160px;" id="filtro-periodo" onchange="loadCobranzas()">
           </select>
           <span id="sync-indicator" style="display:none;font-size:12px;color:var(--text3);"><span class="spinner" style="width:14px;height:14px;border-width:2px;"></span> Sincronizando...</span>
+          <button class="btn" onclick="exportarCobranzasExcel()" style="font-size:12px;" title="Exportar a Excel">⬇ Exportar</button>
           <button class="btn primary admin-only" onclick="abrirModalCobranza()">+ Nueva cobranza</button>
         </div>
       </div>
@@ -3079,6 +3081,72 @@ async function loadDeudaVencida(){
 
     filtrarCobranzas();
   }catch(e){ tbody.innerHTML=`<tr><td colspan="9"><div class="empty">Error: ${e.message}</div></td></tr>`; }
+}
+
+// ── EXPORTAR A EXCEL (CSV) ───────────────────────────────────
+function _descargarCSV(rows, filename){
+  const sep = ';';
+  const csv = '﻿' + rows.map(r =>
+    r.map(v => {
+      const s = String(v ?? '');
+      return (s.includes(sep) || s.includes('"') || s.includes('\n'))
+        ? `"${s.replace(/"/g,'""')}"` : s;
+    }).join(sep)
+  ).join('\r\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportarLicenciasExcel(){
+  if(!_licenciasData?.length){ toast('Sin datos para exportar'); return; }
+  const CL = {totem_nube:'Totem Nube', gestion_play:'Gestion Play', validar:'Validar GP', carlos_pussetto:'Carlos Pussetto', validar_cp:'Validar CP'};
+  const rows = [['Cliente','Cuenta','Tipo','Descripción','Precio Neto','Precio c/IVA 21%','Moneda','Estado','Fecha Alta','Notas']];
+  _licenciasData.forEach(l => {
+    const precio = l.precio_actual || 0;
+    rows.push([
+      l.clientes?.nombre || '',
+      CL[l.cuenta] || l.cuenta || '',
+      TIPO_LABELS[l.tipo] || l.tipo || '',
+      l.descripcion || '',
+      precio,
+      Math.round(precio * 1.21 * 100) / 100,
+      l.moneda || 'ARS',
+      ESTADO_LABEL[l.estado] || l.estado || '',
+      l.fecha_alta || '',
+      (l.notas || '').replace(/\n/g,' ')
+    ]);
+  });
+  const fecha = new Date().toISOString().substring(0,10);
+  _descargarCSV(rows, `licencias_${fecha}.csv`);
+  toast(`✅ Exportadas ${_licenciasData.length} licencias`);
+}
+
+function exportarCobranzasExcel(){
+  if(!_cobranzasData?.length){ toast('Sin datos para exportar'); return; }
+  const CL = {totem_nube:'Totem Nube', gestion_play:'Gestion Play', validar:'Validar GP', carlos_pussetto:'Carlos Pussetto', validar_cp:'Validar CP'};
+  const periodo = document.getElementById('filtro-periodo')?.value || '';
+  const rows = [['Cliente','Cartera','Período','Nro Factura','Monto Neto','Monto c/IVA 21%','Estado','Vencimiento','Fecha Cobro','Canal','Notas']];
+  _cobranzasData.forEach(f => {
+    const monto = parseFloat(f.monto_total || 0);
+    rows.push([
+      f.clientes?.nombre || '',
+      CL[f.cuenta] || f.cuenta || '',
+      f.periodo || '',
+      f.numero_factura_externa || '',
+      monto,
+      Math.round(monto * 1.21 * 100) / 100,
+      ESTADO_LABEL[f.estado] || f.estado || '',
+      f.fecha_vencimiento || '',
+      f.fecha_cobro || '',
+      f.canal_envio || '',
+      (f.notas || '').replace(/\n/g,' ')
+    ]);
+  });
+  _descargarCSV(rows, `cobranzas_${periodo || new Date().toISOString().substring(0,7)}.csv`);
+  toast(`✅ Exportadas ${_cobranzasData.length} cobranzas`);
 }
 
 //   - Si existe en enviada/cobrada/vencida/incobrable → no toca
