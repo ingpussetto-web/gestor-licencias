@@ -281,7 +281,7 @@ tr:hover td { background: var(--bg2); }
 .ms-btn:hover { border-color:var(--accent); }
 .ms-btn.active { border-color:var(--accent); background:var(--surface); }
 .ms-panel {
-  display:none; position:fixed; top:0; left:0; z-index:1000;
+  display:none; position:absolute; top:calc(100% + 4px); left:0; z-index:1000;
   background:var(--surface); border:1px solid var(--border2); border-radius:10px;
   box-shadow:0 4px 20px rgba(0,0,0,0.12); min-width:190px; padding:5px 0;
 }
@@ -515,6 +515,9 @@ tr:hover td { background: var(--bg2); }
     <div class="nav-section">Sistema</div>
     <div class="nav-item" id="nav-precios" onclick="showPage('precios')">
       <span>📈</span> Actualiz. precios
+    </div>
+    <div class="nav-item" id="nav-importaciones" onclick="showPage('importaciones')">
+      <span>📥</span> Importaciones
     </div>
     <div class="nav-item" id="nav-config" onclick="showPage('config')">
       <span>⚙</span> Configuración
@@ -952,6 +955,21 @@ tr:hover td { background: var(--bg2); }
       </div>
     </div>
 
+    <!-- ── IMPORTACIONES ── -->
+    <div class="page" id="page-importaciones">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Importaciones</div>
+          <div class="page-subtitle">Historial de cuentas migradas desde otros sistemas</div>
+        </div>
+        <button class="btn" onclick="loadImportaciones()" style="font-size:12px;">↻ Actualizar</button>
+      </div>
+      <div id="importaciones-stats" style="display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap;"></div>
+      <div id="importaciones-container">
+        <div class="loading"><span class="spinner"></span>Cargando...</div>
+      </div>
+    </div>
+
     <!-- ── CONFIG ── -->
     <div class="page" id="page-config">
       <div class="page-header">
@@ -1330,7 +1348,7 @@ tr:hover td { background: var(--bg2); }
     <button class="banner-close" onclick="cerrarBanner()">✕</button>
   </div>
   <div class="banner-body" id="banner-body"></div>
-  <div class="banner-ver" onclick="cerrarBanner(); showPage('clientes');">Ver clientes →</div>
+  <div class="banner-ver" onclick="cerrarBanner(); showPage('importaciones');">Ver historial →</div>
 </div>
 <div id="toast"></div>
 
@@ -1401,6 +1419,7 @@ function showPage(id){
   if(id==='licencias') loadLicencias();
   if(id==='cobranzas') loadCobranzas();
   if(id==='precios') loadPrecios();
+  if(id==='importaciones') loadImportaciones();
 }
 
 // ── CONEXIÓN ─────────────────────────────────────────────────
@@ -2053,9 +2072,6 @@ function toggleMs(key){
   document.querySelectorAll('.ms-panel.open').forEach(p => p.classList.remove('open'));
   document.querySelectorAll('.ms-btn').forEach(b => b.classList.remove('active'));
   if(!isOpen){
-    const rect = btn.getBoundingClientRect();
-    panel.style.top  = (rect.bottom + 4) + 'px';
-    panel.style.left = rect.left + 'px';
     panel.classList.add('open');
     btn.classList.add('active');
   }
@@ -3275,6 +3291,106 @@ async function checkMigraciones(){
 
 function cerrarBanner(){
   document.getElementById('banner-migracion').style.display = 'none';
+}
+
+// ── HISTORIAL DE IMPORTACIONES ───────────────────────────────
+const _IMP_CUENTA_LABELS = {totem_nube:'Totem Nube', gestion_play:'Gestion Play', validar:'Validar GP', carlos_pussetto:'Carlos Pussetto', validar_cp:'Validar CP'};
+const _IMP_CUENTA_BADGE  = {totem_nube:'badge-amber', gestion_play:'badge-blue', validar:'badge-green', carlos_pussetto:'badge-purple', validar_cp:'badge-red'};
+
+async function loadImportaciones(){
+  const container = document.getElementById('importaciones-container');
+  const statsEl   = document.getElementById('importaciones-stats');
+  if(!container) return;
+  container.innerHTML = '<div class="loading"><span class="spinner"></span>Cargando...</div>';
+  try{
+    const lics = await api(
+      'licencias?notas=like.*Migrado*&select=id,descripcion,cuenta,precio_actual,estado,created_at,notas,clientes(nombre)&order=created_at.desc'
+    ).catch(()=>[]);
+
+    if(!lics?.length){
+      if(statsEl) statsEl.innerHTML = '';
+      container.innerHTML = '<div class="empty"><div class="empty-icon">📦</div><div>No hay importaciones registradas</div><div style="font-size:12px;color:var(--text3);margin-top:6px;">Las licencias migradas aparecen aquí automáticamente</div></div>';
+      return;
+    }
+
+    const totalLics = lics.length;
+    const totalARS  = lics.filter(l=>!l.moneda||l.moneda==='ARS').reduce((s,l)=>s+(l.precio_actual||0),0);
+    const enProceso = lics.filter(l=>l.estado==='en_proceso').length;
+    const activadas = lics.filter(l=>l.estado==='activa').length;
+    if(statsEl) statsEl.innerHTML = `
+      <div class="kpi-card" style="--kpi-color:var(--blue);flex:1;min-width:120px;"><div class="kpi-label">Total importadas</div><div class="kpi-val">${totalLics}</div><div class="kpi-sub">licencias históricas</div></div>
+      <div class="kpi-card" style="--kpi-color:var(--amber);flex:1;min-width:120px;"><div class="kpi-label">En proceso</div><div class="kpi-val">${enProceso}</div><div class="kpi-sub">pendientes de activar</div></div>
+      <div class="kpi-card" style="--kpi-color:var(--green);flex:1;min-width:120px;"><div class="kpi-label">Activadas</div><div class="kpi-val">${activadas}</div><div class="kpi-sub">ya en producción</div></div>
+      <div class="kpi-card" style="--kpi-color:var(--accent);flex:1;min-width:120px;"><div class="kpi-label">MRR importado</div><div class="kpi-val">$${fmt(totalARS)}</div><div class="kpi-sub">ARS/mes acumulado</div></div>
+    `;
+
+    const batches = {};
+    lics.forEach(l => {
+      const fecha = (l.created_at||'').substring(0,10) || 'sin-fecha';
+      const key   = fecha + '|' + (l.cuenta||'');
+      if(!batches[key]) batches[key] = { fecha, cuenta: l.cuenta, items: [], fuente: '' };
+      batches[key].items.push(l);
+      if(!batches[key].fuente && l.notas){
+        const m = l.notas.match(/Migrado desde ([^.·\n]+)/i);
+        if(m) batches[key].fuente = m[1].trim();
+      }
+    });
+
+    const sortedKeys = Object.keys(batches).sort().reverse();
+    let html = '';
+    for(const key of sortedKeys){
+      const b = batches[key];
+      const fechaDisplay = b.fecha !== 'sin-fecha'
+        ? new Date(b.fecha + 'T12:00:00').toLocaleDateString('es-AR',{weekday:'long',year:'numeric',month:'long',day:'numeric'})
+        : 'Fecha desconocida';
+      const cuentaLabel = _IMP_CUENTA_LABELS[b.cuenta] || b.cuenta || '—';
+      const cuentaBadge = _IMP_CUENTA_BADGE[b.cuenta] || 'badge-gray';
+      const totalLote   = b.items.reduce((s,l)=>s+(l.precio_actual||0),0);
+      const enProcLote  = b.items.filter(l=>l.estado==='en_proceso').length;
+      const batchId     = 'batch-' + key.replace(/[^a-z0-9]/gi,'-');
+
+      html += `
+        <div style="margin-bottom:20px;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
+            <div style="font-size:13px;font-weight:600;color:var(--text);text-transform:capitalize;">${fechaDisplay}</div>
+            ${b.fuente?`<span style="font-size:11px;color:var(--text3);">desde <strong>${b.fuente}</strong></span>`:''}
+            <span style="font-size:10px;">→</span>
+            <span class="badge ${cuentaBadge}">${cuentaLabel}</span>
+            <span style="font-size:12px;color:var(--text3);">${b.items.length} licencia${b.items.length!==1?'s':''} · $${fmt(totalLote)} ARS/mes</span>
+            ${enProcLote>0?`<span class="badge badge-amber">${enProcLote} en proceso</span>`:''}
+            <button class="btn sm" onclick="document.getElementById('${batchId}').style.display=document.getElementById('${batchId}').style.display==='none'?'block':'none'" style="margin-left:auto;">Ver detalle ▾</button>
+          </div>
+          <div id="${batchId}" style="display:none;">
+            <div class="table-wrap" style="margin-bottom:0;">
+              <table style="width:100%;border-collapse:collapse;">
+                <thead><tr style="background:var(--surface2);font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--text3);">
+                  <th style="padding:8px 14px;text-align:left;">Cliente</th>
+                  <th style="padding:8px 14px;text-align:left;">Descripción</th>
+                  <th style="padding:8px 14px;text-align:right;">Precio</th>
+                  <th style="padding:8px 14px;text-align:left;">Estado</th>
+                  <th style="padding:8px 14px;text-align:left;">Hora</th>
+                </tr></thead>
+                <tbody>
+                  ${b.items.map(l=>`
+                    <tr style="border-top:1px solid var(--border);font-size:13px;">
+                      <td style="padding:8px 14px;"><strong>${l.clientes?.nombre||'—'}</strong></td>
+                      <td style="padding:8px 14px;color:var(--text3);font-size:12px;">${l.descripcion||'—'}</td>
+                      <td style="padding:8px 14px;text-align:right;font-family:'DM Mono',monospace;">$${fmt(l.precio_actual||0)}</td>
+                      <td style="padding:8px 14px;"><span class="badge ${ESTADO_BADGE[l.estado]||'badge-gray'}">${ESTADO_LABEL[l.estado]||l.estado}</span></td>
+                      <td style="padding:8px 14px;font-size:11px;color:var(--text3);">${l.created_at?new Date(l.created_at).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}):'—'}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    container.innerHTML = html;
+  }catch(e){
+    container.innerHTML = `<div class="empty">Error: ${e.message}</div>`;
+  }
 }
 
 // ── DASHBOARD ────────────────────────────────────────────────
