@@ -1825,6 +1825,7 @@ async function guardarCliente(){
 
 // ── LICENCIAS ────────────────────────────────────────────────
 let _licenciasData = [];
+let _licenciasFiltradas = [];
 let _facturaMesMap = {};
 // ── EVOLUCIÓN MENSUAL LICENCIAS ──────────────────────────────
 const EVOL_INICIO = '2026-06'; // Mostrar desde este período en adelante
@@ -1888,135 +1889,169 @@ async function loadEvolucion(){
   const tbody  = document.getElementById('evolucion-tbody');
   const titulo = document.getElementById('evolucion-titulo');
   const sub    = document.getElementById('evolucion-sub');
-  tbody.innerHTML = '<tr><td colspan="7" style="padding:16px;text-align:center;color:var(--text3);"><span class="spinner" style="border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;width:16px;height:16px;display:inline-block;animation:spin .7s linear infinite;vertical-align:middle;"></span></td></tr>';
+  const thead  = document.querySelector('#evolucion-table thead tr');
 
-  const hoy = new Date();
+  const hoy          = new Date();
   const mesActualStr = `${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}`;
+
+  // Filtros activos
+  const cuentas = getMsValues('cuenta');
+  const tipos   = getMsValues('tipo');
+  const estados = getMsValues('estado');
+
+  // Cuentas a mostrar en columnas (respeta filtro de cuenta)
+  const TODAS_CUENTAS_EVOL = [
+    {key:'totem_nube',      label:'Totem Nube',     color:'var(--amber)'},
+    {key:'gestion_play',    label:'Gestion Play',   color:'var(--blue)'},
+    {key:'validar',         label:'Validar GP',     color:'var(--green)'},
+    {key:'carlos_pussetto', label:'Carlos Pussetto',color:'var(--purple)'},
+    {key:'validar_cp',      label:'Validar CP',     color:'var(--red)'},
+  ];
+  const cuentasToShow = cuentas.length > 0
+    ? TODAS_CUENTAS_EVOL.filter(c => cuentas.includes(c.key))
+    : TODAS_CUENTAS_EVOL;
+  const numCols = 2 + cuentasToShow.length;
+
+  // Actualizar encabezados según cuentas visibles y modo
+  const esLicencias = _evolucionModo === 'licencias';
+  if(thead) thead.innerHTML = `
+    <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);white-space:nowrap;">Período</th>
+    <th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:600;color:var(--text3);">${esLicencias?'Total':'Total'}</th>
+    ${cuentasToShow.map(c=>`<th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:600;color:${c.color};">${c.label}</th>`).join('')}
+  `;
+
+  tbody.innerHTML = `<tr><td colspan="${numCols}" style="padding:16px;text-align:center;color:var(--text3);"><span class="spinner" style="border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;width:16px;height:16px;display:inline-block;animation:spin .7s linear infinite;vertical-align:middle;"></span></td></tr>`;
+
+  // Genera lista de períodos desde EVOL_INICIO hasta mesActual
+  function _genPeriodos(){
+    const ps = [];
+    const [iy,im] = EVOL_INICIO.split('-').map(Number);
+    const [ay,am] = mesActualStr.split('-').map(Number);
+    let cy=iy, cm=im;
+    while(cy < ay || (cy===ay && cm<=am)){ ps.push(`${cy}-${String(cm).padStart(2,'0')}`); cm++; if(cm>12){cm=1;cy++;} }
+    return ps.reverse();
+  }
 
   try{
     if(_evolucionModo === 'facturacion'){
-      // ── MODO FACTURACIÓN ─────────────────────────────────────
       if(titulo) titulo.textContent = 'Evolución de facturación mensual por cuenta';
-      if(sub)    sub.textContent    = 'Basado en cobranzas generadas';
 
-      const facturas = await api('facturas?select=periodo,cuenta,monto_total&order=periodo.desc');
-      if(!facturas?.length){ tbody.innerHTML='<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--text3);">Sin datos</td></tr>'; return; }
+      // Sin filtro de tipo/estado → usar facturas (exacto)
+      // Con filtro de tipo/estado → usar precio_actual de licencias filtradas (estimado)
+      const usarFacturas = tipos.length === 0 && estados.length === 0;
 
-      const mapa = {};
-      facturas.forEach(f => {
-        if(!mapa[f.periodo]) mapa[f.periodo] = {};
-        mapa[f.periodo][f.cuenta] = (mapa[f.periodo][f.cuenta]||0) + (f.monto_total||0);
-      });
+      if(usarFacturas){
+        if(sub) sub.textContent = 'Basado en cobranzas generadas';
+        const facturas = await api('facturas?select=periodo,cuenta,monto_total&order=periodo.desc');
+        if(!facturas?.length){ tbody.innerHTML=`<tr><td colspan="${numCols}" style="padding:20px;text-align:center;color:var(--text3);">Sin datos</td></tr>`; return; }
 
-      const periodos = Object.keys(mapa).filter(p => p >= EVOL_INICIO).sort().reverse();
+        const mapa = {};
+        facturas.forEach(f => {
+          if(!cuentasToShow.find(c=>c.key===f.cuenta)) return;
+          if(!mapa[f.periodo]) mapa[f.periodo] = {};
+          mapa[f.periodo][f.cuenta] = (mapa[f.periodo][f.cuenta]||0) + parseFloat(f.monto_total||0);
+        });
 
-      tbody.innerHTML = periodos.map((p, idx) => {
-        const dat      = mapa[p];
-        const total    = Object.values(dat).reduce((s,v)=>s+v,0);
-        const prevP    = periodos[idx+1];
-        const totalPrev= prevP ? Object.values(mapa[prevP]||{}).reduce((s,v)=>s+v,0) : 0;
-        const esActual = p === mesActualStr;
-        const rowStyle = esActual ? 'background:color-mix(in srgb,var(--accent) 6%,var(--surface));' : idx%2===0?'':'background:var(--surface2);';
-
-        const celdas = CUENTAS_EVOL.map(c => {
-          const v    = dat[c]||0;
-          const prev = prevP ? (mapa[prevP]?.[c]||0) : 0;
-          const color= CUENTA_COLORS_EVOL[c];
-          return v > 0
-            ? `<td style="padding:7px 12px;text-align:right;color:${color};font-family:'DM Mono',monospace;">$${fmt(v)}${_evolucionVarSpan(v,prev)}</td>`
-            : `<td style="padding:7px 12px;text-align:right;color:var(--text3);">—</td>`;
+        const periodos = Object.keys(mapa).filter(p => p >= EVOL_INICIO).sort().reverse();
+        tbody.innerHTML = periodos.map((p,idx) => {
+          const dat      = mapa[p];
+          const total    = cuentasToShow.reduce((s,c)=>s+(dat[c.key]||0),0);
+          const prevP    = periodos[idx+1];
+          const totalPrev= prevP ? cuentasToShow.reduce((s,c)=>s+(mapa[prevP]?.[c.key]||0),0) : 0;
+          const esActual = p === mesActualStr;
+          const rowStyle = esActual ? 'background:color-mix(in srgb,var(--accent) 6%,var(--surface));' : idx%2===0?'':'background:var(--surface2);';
+          const celdas   = cuentasToShow.map(c => {
+            const v = dat[c.key]||0, prev = prevP?(mapa[prevP]?.[c.key]||0):0;
+            return v>0 ? `<td style="padding:7px 12px;text-align:right;color:${c.color};font-family:'DM Mono',monospace;">$${fmt(v)}${_evolucionVarSpan(v,prev)}</td>`
+                       : `<td style="padding:7px 12px;text-align:right;color:var(--text3);">—</td>`;
+          }).join('');
+          return `<tr style="${rowStyle}${esActual?'font-weight:600;':''}">
+            <td style="padding:7px 12px;white-space:nowrap;">${_evolucionFmtPeriodo(p)}${esActual?' <span style="font-size:10px;background:var(--accent);color:#fff;border-radius:4px;padding:1px 5px;margin-left:4px;">actual</span>':''}</td>
+            <td style="padding:7px 12px;text-align:right;font-family:'DM Mono',monospace;font-weight:600;">$${fmt(total)}${_evolucionVarSpan(total,totalPrev)}</td>
+            ${celdas}</tr>`;
         }).join('');
 
-        return `<tr style="${rowStyle}${esActual?'font-weight:600;':''}">
-          <td style="padding:7px 12px;white-space:nowrap;">${_evolucionFmtPeriodo(p)}${esActual?' <span style="font-size:10px;background:var(--accent);color:#fff;border-radius:4px;padding:1px 5px;margin-left:4px;">actual</span>':''}</td>
-          <td style="padding:7px 12px;text-align:right;font-family:'DM Mono',monospace;font-weight:600;">$${fmt(total)}${_evolucionVarSpan(total,totalPrev)}</td>
-          ${celdas}
-        </tr>`;
-      }).join('');
+      } else {
+        // Estimado desde precio_actual de las licencias filtradas
+        if(sub) sub.textContent = 'Estimado según precios actuales · filtro de tipo/estado activo';
+        const lics = (_licenciasFiltradas||[]).filter(l => l.moneda==='ARS');
+        if(!lics.length){ tbody.innerHTML=`<tr><td colspan="${numCols}" style="padding:20px;text-align:center;color:var(--text3);">Sin licencias que coincidan con los filtros</td></tr>`; return; }
+
+        const periodos = _genPeriodos();
+        const mapa = {};
+        periodos.forEach(p => {
+          mapa[p] = {};
+          cuentasToShow.forEach(c => {
+            mapa[p][c.key] = lics
+              .filter(l => l.cuenta===c.key && l.fecha_alta && l.fecha_alta.substring(0,7)<=p)
+              .reduce((s,l)=>s+(l.precio_actual||0), 0);
+          });
+        });
+
+        tbody.innerHTML = periodos.map((p,idx) => {
+          const dat      = mapa[p];
+          const total    = cuentasToShow.reduce((s,c)=>s+(dat[c.key]||0),0);
+          if(!total) return '';
+          const prevP    = periodos[idx+1];
+          const totalPrev= prevP ? cuentasToShow.reduce((s,c)=>s+(mapa[prevP]?.[c.key]||0),0) : 0;
+          const esActual = p === mesActualStr;
+          const rowStyle = esActual ? 'background:color-mix(in srgb,var(--accent) 6%,var(--surface));' : idx%2===0?'':'background:var(--surface2);';
+          const celdas   = cuentasToShow.map(c => {
+            const v = dat[c.key]||0, prev = prevP?(mapa[prevP]?.[c.key]||0):0;
+            return v>0 ? `<td style="padding:7px 12px;text-align:right;color:${c.color};font-family:'DM Mono',monospace;">$${fmt(v)}${_evolucionVarSpan(v,prev)}</td>`
+                       : `<td style="padding:7px 12px;text-align:right;color:var(--text3);">—</td>`;
+          }).join('');
+          return `<tr style="${rowStyle}${esActual?'font-weight:600;':''}">
+            <td style="padding:7px 12px;white-space:nowrap;">${_evolucionFmtPeriodo(p)}${esActual?' <span style="font-size:10px;background:var(--accent);color:#fff;border-radius:4px;padding:1px 5px;margin-left:4px;">actual</span>':''}</td>
+            <td style="padding:7px 12px;text-align:right;font-family:'DM Mono',monospace;font-weight:600;">$${fmt(total)}${_evolucionVarSpan(total,totalPrev)}</td>
+            ${celdas}</tr>`;
+        }).filter(Boolean).join('');
+      }
 
     } else {
       // ── MODO LICENCIAS ───────────────────────────────────────
       if(titulo) titulo.textContent = 'Evolución de licencias activas por cuenta';
-      if(sub)    sub.textContent    = 'Cantidad de licencias activas al cierre de cada mes';
+      if(sub)    sub.textContent    = tipos.length||estados.length||cuentas.length ? 'Filtrado según selección actual' : 'Cantidad de licencias activas al cierre de cada mes';
 
-      const licencias = await api('licencias?select=cuenta,estado,fecha_alta&order=fecha_alta.asc');
-      if(!licencias?.length){ tbody.innerHTML='<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--text3);">Sin datos</td></tr>'; return; }
+      const licencias = _licenciasFiltradas?.length ? _licenciasFiltradas
+        : await api('licencias?select=cuenta,estado,fecha_alta&order=fecha_alta.asc').catch(()=>[]);
+      if(!licencias?.length){ tbody.innerHTML=`<tr><td colspan="${numCols}" style="padding:20px;text-align:center;color:var(--text3);">Sin datos</td></tr>`; return; }
 
-      // Generar lista de períodos desde EVOL_INICIO hasta mesActual
-      const periodos = [];
-      const [iy,im] = EVOL_INICIO.split('-').map(Number);
-      const [ay,am] = mesActualStr.split('-').map(Number);
-      let cy=iy, cm=im;
-      while(cy < ay || (cy===ay && cm<=am)){
-        periodos.push(`${cy}-${String(cm).padStart(2,'0')}`);
-        cm++; if(cm>12){ cm=1; cy++; }
-      }
-      periodos.reverse();
-
-      // Para cada período, contar licencias con fecha_alta <= fin del período y estado activa
-      // Nota: sin historial de estado, usamos el estado actual como aproximación
-      function countLics(periodo){
+      const periodos = _genPeriodos();
+      const mapaLics = {};
+      periodos.forEach(p => {
         const activas = licencias.filter(l =>
-          l.fecha_alta && l.fecha_alta.substring(0,7) <= periodo &&
-          l.estado === 'activa'
+          l.fecha_alta && l.fecha_alta.substring(0,7) <= p && l.estado === 'activa'
         );
         const porCuenta = {};
-        activas.forEach(l => { porCuenta[l.cuenta] = (porCuenta[l.cuenta]||0)+1; });
-        return { total: activas.length, porCuenta };
-      }
+        cuentasToShow.forEach(c => { porCuenta[c.key] = 0; });
+        activas.forEach(l => { if(porCuenta.hasOwnProperty(l.cuenta)) porCuenta[l.cuenta]++; });
+        mapaLics[p] = { total: cuentasToShow.reduce((s,c)=>s+porCuenta[c.key],0), porCuenta };
+      });
 
-      const mapaLics = {};
-      periodos.forEach(p => { mapaLics[p] = countLics(p); });
-
-      // Actualizar encabezados de tabla para mostrar # en vez de $
-      const thead = document.querySelector('#evolucion-table thead tr');
-      if(thead){
-        thead.innerHTML = `
-          <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--text3);white-space:nowrap;">Período</th>
-          <th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:600;color:var(--text3);">Total</th>
-          <th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:600;color:var(--amber);">Totem Nube</th>
-          <th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:600;color:var(--blue);">Gestion Play</th>
-          <th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:600;color:var(--green);">Validar GP</th>
-          <th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:600;color:var(--purple);">Carlos Pussetto</th>
-          <th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:600;color:var(--red);">Validar CP</th>`;
-      }
-
-      tbody.innerHTML = periodos.map((p, idx) => {
+      tbody.innerHTML = periodos.map((p,idx) => {
         const { total, porCuenta } = mapaLics[p];
         const prevP    = periodos[idx+1];
         const totalPrev= prevP ? mapaLics[prevP].total : 0;
         const esActual = p === mesActualStr;
         const rowStyle = esActual ? 'background:color-mix(in srgb,var(--accent) 6%,var(--surface));' : idx%2===0?'':'background:var(--surface2);';
-
-        const celdas = CUENTAS_EVOL.map(c => {
-          const v    = porCuenta[c]||0;
-          const prev = prevP ? (mapaLics[prevP].porCuenta[c]||0) : 0;
-          const color= CUENTA_COLORS_EVOL[c];
+        const celdas   = cuentasToShow.map(c => {
+          const v = porCuenta[c.key]||0, prev = prevP?(mapaLics[prevP].porCuenta[c.key]||0):0;
           const diff = v-prev;
-          const diffSpan = prevP && diff!==0
-            ? `<span style="font-size:10px;color:${diff>0?'var(--green)':'var(--red)'};margin-left:4px;">${diff>0?'+':''}${diff}</span>`
-            : '';
-          return v > 0
-            ? `<td style="padding:7px 12px;text-align:right;color:${color};font-weight:600;">${v}${diffSpan}</td>`
-            : `<td style="padding:7px 12px;text-align:right;color:var(--text3);">—</td>`;
+          const ds = prevP&&diff!==0?`<span style="font-size:10px;color:${diff>0?'var(--green)':'var(--red)'};margin-left:4px;">${diff>0?'+':''}${diff}</span>`:'';
+          return v>0 ? `<td style="padding:7px 12px;text-align:right;color:${CUENTA_COLORS_EVOL[c.key]};font-weight:600;">${v}${ds}</td>`
+                     : `<td style="padding:7px 12px;text-align:right;color:var(--text3);">—</td>`;
         }).join('');
-
-        const diffTotal = totalPrev ? total-totalPrev : 0;
-        const diffSpanT = totalPrev && diffTotal!==0
-          ? `<span style="font-size:10px;color:${diffTotal>0?'var(--green)':'var(--red)'};margin-left:4px;">${diffTotal>0?'+':''}${diffTotal}</span>`
-          : '';
-
+        const dt = totalPrev?total-totalPrev:0;
+        const dts= totalPrev&&dt!==0?`<span style="font-size:10px;color:${dt>0?'var(--green)':'var(--red)'};margin-left:4px;">${dt>0?'+':''}${dt}</span>`:'';
         return `<tr style="${rowStyle}${esActual?'font-weight:600;':''}">
           <td style="padding:7px 12px;white-space:nowrap;">${_evolucionFmtPeriodo(p)}${esActual?' <span style="font-size:10px;background:var(--accent);color:#fff;border-radius:4px;padding:1px 5px;margin-left:4px;">actual</span>':''}</td>
-          <td style="padding:7px 12px;text-align:right;font-weight:700;">${total}${diffSpanT}</td>
-          ${celdas}
-        </tr>`;
+          <td style="padding:7px 12px;text-align:right;font-weight:700;">${total}${dts}</td>
+          ${celdas}</tr>`;
       }).join('');
-
-      // Restaurar encabezados para facturación si se vuelve a ese modo
     }
   }catch(e){
-    tbody.innerHTML = `<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--red);">Error: ${e.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="${numCols}" style="padding:20px;text-align:center;color:var(--red);">Error: ${e.message}</td></tr>`;
   }
 }
 
@@ -2123,8 +2158,10 @@ function filtrarLicencias(){
     const matchCuenta = cuentas.length === 0 || cuentas.includes(l.cuenta);
     return matchQ && matchTipo && matchEst && matchCuenta;
   });
+  _licenciasFiltradas = filtered;
   renderLicenciasStats(filtered);
   renderLicencias(filtered);
+  if(_evolucionAbierto) loadEvolucion();
 }
 
 function renderLicenciasStats(filtered){
