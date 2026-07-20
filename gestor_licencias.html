@@ -1768,7 +1768,7 @@ async function guardarCliente(){
           for(let q=0; q<qty; q++){
             await api('licencias','POST',{
               cliente_id: clienteId, cuenta, tipo, descripcion: desc,
-              precio_actual: precio, moneda: 'ARS', estado: 'activa', proveedor: cuenta,
+              precio_actual: precio, moneda: 'ARS', estado: 'en_proceso', proveedor: cuenta,
               fecha_alta: inicio ? inicio+'-01' : null
             });
             // Generación retroactiva si el inicio es anterior al mes actual
