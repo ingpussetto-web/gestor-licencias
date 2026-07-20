@@ -793,8 +793,6 @@ tr:hover td { background: var(--bg2); }
               <div class="ms-divider"></div>
               <label class="ms-item"><input type="checkbox" class="ms-tipo-cb" value="agro" onchange="onMsCb('tipo',this)"> Agro</label>
               <label class="ms-item"><input type="checkbox" class="ms-tipo-cb" value="autogestion" onchange="onMsCb('tipo',this)"> Autogestión y pagos</label>
-              <label class="ms-item"><input type="checkbox" class="ms-tipo-cb" value="cuos_atencion" onchange="onMsCb('tipo',this)"> CUOS Atención remota</label>
-              <label class="ms-item"><input type="checkbox" class="ms-tipo-cb" value="cuos_vigilancia" onchange="onMsCb('tipo',this)"> CUOS Vigilancia</label>
               <label class="ms-item"><input type="checkbox" class="ms-tipo-cb" value="turnero" onchange="onMsCb('tipo',this)"> Turnero</label>
               <label class="ms-item"><input type="checkbox" class="ms-tipo-cb" value="publicidad" onchange="onMsCb('tipo',this)"> Publicidad digital</label>
               <label class="ms-item"><input type="checkbox" class="ms-tipo-cb" value="ia" onchange="onMsCb('tipo',this)"> Agente IA</label>
@@ -1074,8 +1072,6 @@ tr:hover td { background: var(--bg2); }
           <option value="publicidad">Publicidad digital</option>
           <option value="ia">Agente IA</option>
           <option value="autogestion">Autogestión y pagos</option>
-          <option value="cuos_atencion">CUOS Atención remota</option>
-          <option value="cuos_vigilancia">CUOS Vigilancia</option>
           <option value="agro">Agro</option>
           <option value="adm">ADM</option>
           <option value="estudio">Estudio</option>
@@ -1653,8 +1649,8 @@ async function editarCliente(id){
     if(!lics?.length){
       lista.innerHTML = '<div style="padding:8px;color:var(--text3);font-size:12px;">Sin licencias cargadas</div>';
     } else {
-      const tiposOpts = (sel)=>['turnero','publicidad','ia','autogestion','cuos_atencion','cuos_vigilancia','agro','adm','estudio']
-        .map(t=>`<option value="${t}" ${t===sel?'selected':''}>${{turnero:'Turnero',publicidad:'Publicidad digital',ia:'Agente IA',autogestion:'Autogestión y pagos',cuos_atencion:'CUOS Atención remota',cuos_vigilancia:'CUOS Vigilancia',agro:'Agro',adm:'ADM',estudio:'Estudio'}[t]}</option>`).join('');
+      const tiposOpts = (sel)=>['turnero','publicidad','ia','autogestion','agro','adm','estudio']
+        .map(t=>`<option value="${t}" ${t===sel?'selected':''}>${{turnero:'Turnero',publicidad:'Publicidad digital',ia:'Agente IA',autogestion:'Autogestión y pagos',agro:'Agro',adm:'ADM',estudio:'Estudio'}[t]}</option>`).join('');
       const cuentasOpts = (sel)=>['totem_nube','gestion_play','validar','carlos_pussetto','validar_cp']
         .map(c=>`<option value="${c}" ${c===sel?'selected':''}>${{totem_nube:'Totem Nube',gestion_play:'Gestion Play',validar:'Validar GP',carlos_pussetto:'Carlos Pussetto',validar_cp:'Validar CP'}[c]}</option>`).join('');
       const estadosOpts = (sel)=>['activa','inactiva','en_proceso','dada_de_baja']
@@ -1719,8 +1715,8 @@ async function guardarLicenciaInline(btn){
 }
 function agregarFilaLicencia(){
   const lista = document.getElementById('cli-licencias-lista');
-  const tiposOpts = ['turnero','publicidad','ia','autogestion','cuos_atencion','cuos_vigilancia','agro','adm','estudio']
-    .map(t=>(`<option value="${t}">${{turnero:'Turnero',publicidad:'Publicidad digital',ia:'Agente IA',autogestion:'Autogestión y pagos',cuos_atencion:'CUOS Atención remota',cuos_vigilancia:'CUOS Vigilancia',agro:'Agro',adm:'ADM',estudio:'Estudio'}[t]}</option>`)).join('');
+  const tiposOpts = ['turnero','publicidad','ia','autogestion','agro','adm','estudio']
+    .map(t=>(`<option value="${t}">${{turnero:'Turnero',publicidad:'Publicidad digital',ia:'Agente IA',autogestion:'Autogestión y pagos',agro:'Agro',adm:'ADM',estudio:'Estudio'}[t]}</option>`)).join('');
   const row = document.createElement('div');
   row.dataset.licRow = '1';
   row.style.cssText = 'background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;';
