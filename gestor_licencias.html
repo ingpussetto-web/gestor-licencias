@@ -2225,7 +2225,7 @@ function renderLicencias(data){
       <td><span class="badge badge-blue">${TIPO_LABELS[l.tipo]||l.tipo}</span></td>
       <td style="max-width:200px;font-size:12px;">${l.descripcion||'—'}</td>
       <td style="font-family:'DM Mono',monospace;font-weight:600;color:var(--accent);">$${fmt(l.precio_actual)}</td>
-      <td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);">${l.moneda==='ARS' ? '$'+fmt(l.precio_actual*1.21) : '—'}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);">${l.moneda==='ARS' ? '$'+fmt(l.precio_actual*1.21) : 'USD '+fmt(l.precio_actual*1.21)}</td>
       <td><span class="badge ${l.moneda==='USD'?'badge-amber':'badge-gray'}">${l.moneda}</span></td>
       <td>
         ${MODO_PROVEEDOR
@@ -2583,7 +2583,7 @@ async function loadCobranzas(){
     // Auto-sincronizar cobranzas antes de mostrar
     await sincronizarCobranzas(periodo);
 
-    const data = await api(`facturas?periodo=eq.${periodo}&select=id,cliente_id,periodo,numero_factura_externa,monto_total,estado,fecha_vencimiento,fecha_cobro,canal_envio,notas,cuenta,clientes(nombre),pagos(id,monto,fecha_pago,notas)&order=cuenta.asc,clientes(nombre).asc`);
+    const data = await api(`facturas?periodo=eq.${periodo}&select=id,cliente_id,periodo,numero_factura_externa,monto_total,estado,fecha_vencimiento,fecha_cobro,canal_envio,notas,cuenta,moneda,clientes(nombre),pagos(id,monto,fecha_pago,notas)&order=cuenta.asc,clientes(nombre).asc`);
     _cobranzasData = data||[];
 
     actualizarStatsCobranzas(_cobranzasData);
@@ -2622,17 +2622,28 @@ function cobradoFact(f){
 function saldoFact(f){ return Math.max(0,(f.monto_total||0)-cobradoFact(f)); }
 
 function actualizarStatsCobranzas(data){
-  const vencidas   = data.filter(f=>f.estado==='vencida');
-  const totalCobrado   = data.reduce((s,f)=>s+cobradoFact(f),0);
-  const totalPendiente = data.filter(f=>f.estado!=='incobrable').reduce((s,f)=>s+saldoFact(f),0);
-  const nPendientes = data.filter(f=>f.estado!=='incobrable'&&saldoFact(f)>0).length;
-  const nCobrados   = data.filter(f=>cobradoFact(f)>0).length;
-  document.getElementById('cobranzas-stats').innerHTML =
-    `<div class="stat-card"><div class="stat-val" style="color:var(--green);">$${fmt(totalCobrado)}</div><div class="stat-label">Cobrado neto (${nCobrados})</div></div>`+
-    `<div class="stat-card"><div class="stat-val" style="color:var(--green);font-size:16px;">$${fmt(totalCobrado*1.21)}</div><div class="stat-label">Cobrado c/IVA</div></div>`+
-    `<div class="stat-card"><div class="stat-val" style="color:var(--amber);">$${fmt(totalPendiente)}</div><div class="stat-label">Pendiente neto (${nPendientes})</div></div>`+
-    `<div class="stat-card"><div class="stat-val" style="color:var(--amber);font-size:16px;">$${fmt(totalPendiente*1.21)}</div><div class="stat-label">Pendiente c/IVA</div></div>`+
+  const arsData = data.filter(f=>(f.moneda||'ARS')==='ARS');
+  const usdData = data.filter(f=>f.moneda==='USD');
+  const vencidas = data.filter(f=>f.estado==='vencida');
+  const totalCobradoARS   = arsData.reduce((s,f)=>s+cobradoFact(f),0);
+  const totalPendienteARS = arsData.filter(f=>f.estado!=='incobrable').reduce((s,f)=>s+saldoFact(f),0);
+  const nPendientes = arsData.filter(f=>f.estado!=='incobrable'&&saldoFact(f)>0).length;
+  const nCobrados   = arsData.filter(f=>cobradoFact(f)>0).length;
+  const totalCobradoUSD   = usdData.reduce((s,f)=>s+cobradoFact(f),0);
+  const totalPendienteUSD = usdData.filter(f=>f.estado!=='incobrable').reduce((s,f)=>s+saldoFact(f),0);
+  const nCobradosUSD = usdData.filter(f=>cobradoFact(f)>0).length;
+  let html =
+    `<div class="stat-card"><div class="stat-val" style="color:var(--green);">$${fmt(totalCobradoARS)}</div><div class="stat-label">Cobrado ARS (${nCobrados})</div></div>`+
+    `<div class="stat-card"><div class="stat-val" style="color:var(--green);font-size:16px;">$${fmt(totalCobradoARS*1.21)}</div><div class="stat-label">Cobrado c/IVA ARS</div></div>`+
+    `<div class="stat-card"><div class="stat-val" style="color:var(--amber);">$${fmt(totalPendienteARS)}</div><div class="stat-label">Pendiente ARS (${nPendientes})</div></div>`+
+    `<div class="stat-card"><div class="stat-val" style="color:var(--amber);font-size:16px;">$${fmt(totalPendienteARS*1.21)}</div><div class="stat-label">Pendiente c/IVA ARS</div></div>`+
     `<div class="stat-card"><div class="stat-val" style="color:var(--red);">${vencidas.length}</div><div class="stat-label">Vencidas</div></div>`;
+  if(usdData.length > 0)
+    html +=
+      `<div class="stat-card"><div class="stat-val" style="color:var(--blue);">USD ${fmt(totalCobradoUSD)}</div><div class="stat-label">Cobrado USD (${nCobradosUSD})</div></div>`+
+      `<div class="stat-card"><div class="stat-val" style="color:var(--blue);font-size:16px;">USD ${fmt(totalCobradoUSD*1.21)}</div><div class="stat-label">Cobrado c/IVA USD</div></div>`+
+      `<div class="stat-card"><div class="stat-val" style="color:var(--amber);">USD ${fmt(totalPendienteUSD)}</div><div class="stat-label">Pendiente USD</div></div>`;
+  document.getElementById('cobranzas-stats').innerHTML = html;
 }
 
 function estadoSelectColor(estado){
@@ -2652,8 +2663,8 @@ function renderCobranzas(data){
       <td><span class="badge ${COB_CUENTA_BADGE[f.cuenta]||'badge-gray'}">${COB_CUENTA_LABELS[f.cuenta]||f.cuenta||'—'}</span></td>
       <td style="font-family:'DM Mono',monospace;font-size:12px;">${f.periodo||'—'}</td>
       <td style="font-size:12px;">${f.numero_factura_externa||'—'}</td>
-      <td style="font-family:'DM Mono',monospace;font-weight:600;color:var(--accent);">$${fmt(f.monto_total)}</td>
-      <td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);">$${fmt(f.monto_total*1.21)}</td>
+      <td style="font-family:'DM Mono',monospace;font-weight:600;color:var(--accent);">${(f.moneda||'ARS')==='USD'?'USD ':'$'}${fmt(f.monto_total)}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);">${(f.moneda||'ARS')==='USD'?'USD ':'$'}${fmt(f.monto_total*1.21)}</td>
       <td style="font-size:12px;">${fmtFecha(f.fecha_vencimiento)}</td>
       <td>
         ${MODO_PROVEEDOR
@@ -3260,12 +3271,15 @@ async function sincronizarCobranzas(periodo){
 
     // 5. Cobranzas existentes del período con sus estados
     const existentes = await api(
-      `facturas?periodo=eq.${periodo}&select=id,cliente_id,cuenta,monto_total,estado`
+      `facturas?periodo=eq.${periodo}&select=id,cliente_id,cuenta,monto_total,estado,moneda`
     ).catch(()=>[]);
-    // mapa: cuenta|clienteId → factura
-    const existMap = {};
+    // mapa separado por moneda: cuenta|clienteId → factura
+    const existMapARS = {};
+    const existMapUSD = {};
     (existentes||[]).forEach(f => {
-      existMap[f.cuenta+'|'+(f.cliente_id??'null')] = f;
+      const key = f.cuenta+'|'+(f.cliente_id??'null');
+      if((f.moneda||'ARS')==='USD') existMapUSD[key] = f;
+      else existMapARS[key] = f;
     });
 
     // 6. Agrupar licencias por cliente+cuenta y calcular monto correcto
@@ -3304,17 +3318,16 @@ async function sincronizarCobranzas(periodo){
       grupos['validar_cp|'+anchorIdVcp] = { cliente_id: anchorIdVcp, cuenta: 'validar_cp', monto: totalVcp };
     }
 
-    // 7. Upsert respetando estados
+    // 7. Upsert ARS respetando estados
     const ESTADOS_BLOQUEADOS = new Set(['enviada','cobrada','cobrado_parcial','vencida','incobrable']);
     let creados = 0, actualizados = 0;
 
     for(const [key, g] of Object.entries(grupos)){
       if(g.monto <= 0) continue;
       const montoRound = Math.round(g.monto * 100) / 100;
-      const existente = existMap[key];
+      const existente = existMapARS[key];
 
       if(existente){
-        // Solo tocar si está en borrador y el monto cambió
         if(!ESTADOS_BLOQUEADOS.has(existente.estado) &&
            Math.abs(parseFloat(existente.monto_total) - montoRound) > 0.01){
           await api('facturas?id=eq.'+existente.id, 'PATCH', { monto_total: montoRound });
@@ -3322,16 +3335,63 @@ async function sincronizarCobranzas(periodo){
         }
       } else {
         await api('facturas', 'POST', {
-          cliente_id: g.cliente_id,
-          periodo,
-          cuenta: g.cuenta,
-          monto_total: montoRound,
-          estado: 'borrador',
-          fecha_emision: fechaEmision,
-          fecha_vencimiento: fechaVencimiento,
-          canal_envio: 'email'
+          cliente_id: g.cliente_id, periodo, cuenta: g.cuenta,
+          monto_total: montoRound, moneda: 'ARS', estado: 'borrador',
+          fecha_emision: fechaEmision, fecha_vencimiento: fechaVencimiento, canal_envio: 'email'
         });
         creados++;
+      }
+    }
+
+    // 7b. Upsert USD — sin ajuste de inflación
+    const licenciasUSD = await api(
+      'licencias?estado=eq.activa&moneda=eq.USD&select=id,cliente_id,precio_actual,cuenta,fecha_alta,fecha_inicio_cobranza'
+    ).catch(()=>[]);
+    const licsUSDDelPeriodo = (licenciasUSD||[]).filter(l => {
+      const f = l.fecha_inicio_cobranza || l.fecha_alta;
+      return !f || f.substring(0,7) <= periodo;
+    });
+    if(licsUSDDelPeriodo.length > 0){
+      const gruposUSD = {};
+      licsUSDDelPeriodo.forEach(l => {
+        const key = l.cuenta+'|'+l.cliente_id;
+        if(!gruposUSD[key]) gruposUSD[key] = { cliente_id: l.cliente_id, cuenta: l.cuenta, monto: 0 };
+        gruposUSD[key].monto += parseFloat(l.precio_actual||0);
+      });
+      const vUSD = Object.keys(gruposUSD).filter(k=>k.startsWith('validar|'));
+      if(vUSD.length >= 1){
+        const tot = vUSD.reduce((s,k)=>s+gruposUSD[k].monto,0);
+        const ex  = (existentes||[]).find(f=>f.cuenta==='validar'&&f.moneda==='USD');
+        const anc = ex ? ex.cliente_id : Math.min(...vUSD.map(k=>gruposUSD[k].cliente_id));
+        vUSD.forEach(k=>delete gruposUSD[k]);
+        gruposUSD['validar|'+anc] = {cliente_id:anc, cuenta:'validar', monto:tot};
+      }
+      const vcUSD = Object.keys(gruposUSD).filter(k=>k.startsWith('validar_cp|'));
+      if(vcUSD.length >= 1){
+        const tot = vcUSD.reduce((s,k)=>s+gruposUSD[k].monto,0);
+        const ex  = (existentes||[]).find(f=>f.cuenta==='validar_cp'&&f.moneda==='USD');
+        const anc = ex ? ex.cliente_id : Math.min(...vcUSD.map(k=>gruposUSD[k].cliente_id));
+        vcUSD.forEach(k=>delete gruposUSD[k]);
+        gruposUSD['validar_cp|'+anc] = {cliente_id:anc, cuenta:'validar_cp', monto:tot};
+      }
+      for(const [key, g] of Object.entries(gruposUSD)){
+        if(g.monto <= 0) continue;
+        const montoRound = Math.round(g.monto * 100) / 100;
+        const existente = existMapUSD[key];
+        if(existente){
+          if(!ESTADOS_BLOQUEADOS.has(existente.estado) &&
+             Math.abs(parseFloat(existente.monto_total) - montoRound) > 0.01){
+            await api('facturas?id=eq.'+existente.id, 'PATCH', { monto_total: montoRound });
+            actualizados++;
+          }
+        } else {
+          await api('facturas', 'POST', {
+            cliente_id: g.cliente_id, periodo, cuenta: g.cuenta,
+            monto_total: montoRound, moneda: 'USD', estado: 'borrador',
+            fecha_emision: fechaEmision, fecha_vencimiento: fechaVencimiento, canal_envio: 'email'
+          });
+          creados++;
+        }
       }
     }
 
